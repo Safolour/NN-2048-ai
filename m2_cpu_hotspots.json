@@ -1,0 +1,374 @@
+{
+  "methodology": {
+    "sizes": [
+      4096,
+      8192,
+      16384
+    ],
+    "warmup_min_iterations": 20,
+    "measurement_min_iterations": 100,
+    "measurement_min_seconds": 2.0,
+    "reward_component_note": "Reward cost is isolated as reward-producing movement minus identical movement-only execution; frozen M1 source is not modified.",
+    "complete_decision_denominator": "current legal + env.step + reset_where CPU time; GPU work is intentionally excluded"
+  },
+  "sizes": {
+    "4096": {
+      "current_legal": {
+        "iterations": 155,
+        "elapsed_s": 2.0012617999964277,
+        "us_per_iteration": 12911.366451589856,
+        "boards_per_s": 317239.85337707103,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 34.33922752765922
+      },
+      "selected_move_only": {
+        "iterations": 435,
+        "elapsed_s": 2.000323499996739,
+        "us_per_iteration": 4598.44482757871,
+        "boards_per_s": 890735.9234658318,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 12.230079891208485
+      },
+      "selected_move_with_reward": {
+        "iterations": 372,
+        "elapsed_s": 2.0027439999976195,
+        "us_per_iteration": 5383.720430101128,
+        "boards_per_s": 760812.165709552,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 14.318608451531126
+      },
+      "reward_calculation_aggregation": {
+        "method": "reward-mode minus movement-only on the same _move_groups kernel",
+        "us_per_iteration": 785.275602522418,
+        "boards_per_s": 5216003.129147346,
+        "allocation_count": null,
+        "allocation_note": "Derived differential; not a standalone allocation count.",
+        "percent_of_cpu_decision": 2.0885285603226396
+      },
+      "score_overflow_check_update": {
+        "iterations": 133073,
+        "elapsed_s": 2.000007899994671,
+        "us_per_iteration": 15.029404161585527,
+        "boards_per_s": 272532427.49763757,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 0.0399723864274864
+      },
+      "spawn_preparation": {
+        "iterations": 34091,
+        "elapsed_s": 2.0000380000055884,
+        "us_per_iteration": 58.66762488649756,
+        "boards_per_s": 69817041.47601688,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 0.15603312995865992
+      },
+      "random_draw_generation": {
+        "iterations": 76544,
+        "elapsed_s": 2.0000236999985646,
+        "us_per_iteration": 26.129072167623388,
+        "boards_per_s": 156760254.39109796,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 0.06949319869549231
+      },
+      "spawn_placement": {
+        "iterations": 1825,
+        "elapsed_s": 2.000111700006528,
+        "us_per_iteration": 1095.951616441933,
+        "boards_per_s": 3737391.266685557,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 2.9148062722417203
+      },
+      "post_spawn_terminal": {
+        "iterations": 114,
+        "elapsed_s": 2.006385400003637,
+        "us_per_iteration": 17599.87192985647,
+        "boards_per_s": 232728.96622909713,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 46.80883382274264
+      },
+      "output_copy_allocation": {
+        "iterations": 189005,
+        "elapsed_s": 2.0000011999945855,
+        "us_per_iteration": 10.581736991056244,
+        "boards_per_s": 387082007.7518433,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 0.028143316630052314
+      },
+      "reset_where": {
+        "iterations": 4622,
+        "elapsed_s": 2.0002598999999464,
+        "us_per_iteration": 432.7693422760594,
+        "boards_per_s": 99360.08815654673,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 1.1509986156099774
+      },
+      "total_env_step": {
+        "iterations": 100,
+        "elapsed_s": 2.4255331000167644,
+        "us_per_iteration": 24255.331000167644,
+        "boards_per_s": 168870.09292809444,
+        "allocation_count": null,
+        "allocation_note": "Step allocation is represented separately by output_copy_allocation.",
+        "percent_of_cpu_decision": 64.50977385673082
+      }
+    },
+    "8192": {
+      "current_legal": {
+        "iterations": 100,
+        "elapsed_s": 4.100273700001708,
+        "us_per_iteration": 41002.73700001708,
+        "boards_per_s": 199791.54074511144,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 42.924473927657914
+      },
+      "selected_move_only": {
+        "iterations": 222,
+        "elapsed_s": 2.004098099998373,
+        "us_per_iteration": 9027.46891891159,
+        "boards_per_s": 907452.5842829132,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 9.450572878644694
+      },
+      "selected_move_with_reward": {
+        "iterations": 198,
+        "elapsed_s": 2.0044453000009526,
+        "us_per_iteration": 10123.461111115923,
+        "boards_per_s": 809209.4107029157,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 10.597932584880205
+      },
+      "reward_calculation_aggregation": {
+        "method": "reward-mode minus movement-only on the same _move_groups kernel",
+        "us_per_iteration": 1095.9921922043322,
+        "boards_per_s": 7474505.802385057,
+        "allocation_count": null,
+        "allocation_note": "Derived differential; not a standalone allocation count.",
+        "percent_of_cpu_decision": 1.1473597062355105
+      },
+      "score_overflow_check_update": {
+        "iterations": 85278,
+        "elapsed_s": 2.0000132999994094,
+        "us_per_iteration": 23.452863575592875,
+        "boards_per_s": 349296365.17927474,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 0.024552064197056772
+      },
+      "spawn_preparation": {
+        "iterations": 16940,
+        "elapsed_s": 2.000017799997295,
+        "us_per_iteration": 118.0648051946455,
+        "boards_per_s": 69385622.46805389,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 0.12359832594466708
+      },
+      "random_draw_generation": {
+        "iterations": 40200,
+        "elapsed_s": 2.0000295999998343,
+        "us_per_iteration": 49.75198009949837,
+        "boards_per_s": 164656763.07992005,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 0.052083780959046304
+      },
+      "spawn_placement": {
+        "iterations": 829,
+        "elapsed_s": 2.0031024999989313,
+        "us_per_iteration": 2416.287696018011,
+        "boards_per_s": 3390324.7587198475,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 2.529535484653196
+      },
+      "post_spawn_terminal": {
+        "iterations": 100,
+        "elapsed_s": 4.140780599998834,
+        "us_per_iteration": 41407.80599998834,
+        "boards_per_s": 197837.09380792372,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 43.34852790552192
+      },
+      "output_copy_allocation": {
+        "iterations": 105719,
+        "elapsed_s": 2.000001500004146,
+        "us_per_iteration": 18.91808946361719,
+        "boards_per_s": 433024699.23057795,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 0.019804752008184177
+      },
+      "reset_where": {
+        "iterations": 4374,
+        "elapsed_s": 2.0004219000038574,
+        "us_per_iteration": 457.3438271613757,
+        "boards_per_s": 185855.7937199563,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 0.4787788479816746
+      },
+      "total_env_step": {
+        "iterations": 100,
+        "elapsed_s": 5.406289999984438,
+        "us_per_iteration": 54062.899999844376,
+        "boards_per_s": 151527.20257373506,
+        "allocation_count": null,
+        "allocation_note": "Step allocation is represented separately by output_copy_allocation.",
+        "percent_of_cpu_decision": 56.59674722436042
+      }
+    },
+    "16384": {
+      "current_legal": {
+        "iterations": 100,
+        "elapsed_s": 9.8968257000015,
+        "us_per_iteration": 98968.257000015,
+        "boards_per_s": 165548.03021333917,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 44.009124323083135
+      },
+      "selected_move_only": {
+        "iterations": 100,
+        "elapsed_s": 2.1289535999967484,
+        "us_per_iteration": 21289.535999967484,
+        "boards_per_s": 769579.9476336649,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 9.467013616327314
+      },
+      "selected_move_with_reward": {
+        "iterations": 100,
+        "elapsed_s": 2.3934911000033026,
+        "us_per_iteration": 23934.911000033026,
+        "boards_per_s": 684523.1218940982,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 10.643356827656609
+      },
+      "reward_calculation_aggregation": {
+        "method": "reward-mode minus movement-only on the same _move_groups kernel",
+        "us_per_iteration": 2645.375000065542,
+        "boards_per_s": 6193450.833849291,
+        "allocation_count": null,
+        "allocation_note": "Derived differential; not a standalone allocation count.",
+        "percent_of_cpu_decision": 1.1763432113292938
+      },
+      "score_overflow_check_update": {
+        "iterations": 46447,
+        "elapsed_s": 2.0000196999972104,
+        "us_per_iteration": 43.06025577533986,
+        "boards_per_s": 380490076.1732804,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 0.019147999643970726
+      },
+      "spawn_preparation": {
+        "iterations": 8839,
+        "elapsed_s": 2.0002443000048515,
+        "us_per_iteration": 226.29757891219046,
+        "boards_per_s": 72400244.30998191,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 0.10062982400870005
+      },
+      "random_draw_generation": {
+        "iterations": 20181,
+        "elapsed_s": 2.0000275000056718,
+        "us_per_iteration": 99.10447946116008,
+        "boards_per_s": 165320478.8429471,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 0.04406969961671622
+      },
+      "spawn_placement": {
+        "iterations": 396,
+        "elapsed_s": 2.003729599993676,
+        "us_per_iteration": 5059.923232307263,
+        "boards_per_s": 3237993.789192153,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 2.2500425625949267
+      },
+      "post_spawn_terminal": {
+        "iterations": 100,
+        "elapsed_s": 9.76999749999959,
+        "us_per_iteration": 97699.9749999959,
+        "boards_per_s": 167697.07464101896,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 43.44514571107666
+      },
+      "output_copy_allocation": {
+        "iterations": 60067,
+        "elapsed_s": 2.0000359999976354,
+        "us_per_iteration": 33.29675196027162,
+        "boards_per_s": 492060006.9204572,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 0.014806372679416127
+      },
+      "reset_where": {
+        "iterations": 3691,
+        "elapsed_s": 2.00036689999979,
+        "us_per_iteration": 541.9579788674587,
+        "boards_per_s": 311832.29436563136,
+        "allocation_count": null,
+        "allocation_note": "NumPy native allocations are not reliably counted by Python tracemalloc.",
+        "percent_of_cpu_decision": 0.24099743486299086
+      },
+      "total_env_step": {
+        "iterations": 100,
+        "elapsed_s": 12.537100799992913,
+        "us_per_iteration": 125371.00799992913,
+        "boards_per_s": 130684.12116467359,
+        "allocation_count": null,
+        "allocation_note": "Step allocation is represented separately by output_copy_allocation.",
+        "percent_of_cpu_decision": 55.749878242053875
+      }
+    }
+  },
+  "profiler": {
+    "4096_cprofile": "         68489 function calls in 1.285 seconds\n\n   Ordered by: cumulative time\n   List reduced from 68 to 35 due to restriction <35>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n      270    0.195    0.001    1.193    0.004 fast_env.py:559(_move_groups)\n       60    0.000    0.000    1.033    0.017 fast_env.py:766(legal_mask_batch)\n       60    0.015    0.000    1.032    0.017 fast_env.py:738(_move_all_actions_batch)\n      720    0.396    0.001    0.790    0.001 fast_env.py:404(_pack_left_rows)\n       30    0.002    0.000    0.735    0.024 fast_env.py:1262(step)\n      360    0.142    0.000    0.540    0.002 fast_env.py:431(_merge_left_rows)\n       30    0.000    0.000    0.512    0.017 fast_env.py:788(is_terminal_batch)\n     3812    0.005    0.000    0.392    0.000 fromnumeric.py:53(_wrapfunc)\n     3002    0.002    0.000    0.244    0.000 fromnumeric.py:1881(nonzero)\n     3002    0.238    0.000    0.238    0.000 {method 'nonzero' of 'numpy.ndarray' objects}\n       30    0.000    0.000    0.178    0.006 fast_env.py:725(_move_batch)\n      810    0.002    0.000    0.151    0.000 fromnumeric.py:2512(cumsum)\n      810    0.148    0.000    0.148    0.000 {method 'cumsum' of 'numpy.ndarray' objects}\n       60    0.004    0.000    0.057    0.001 fast_env.py:1342(_spawn_group)\n       90    0.024    0.000    0.051    0.001 fast_env.py:1391(_place_tiles)\n     4380    0.045    0.000    0.045    0.000 {method 'reduce' of 'numpy.ufunc' objects}\n     3000    0.003    0.000    0.039    0.000 {method 'any' of 'numpy.ndarray' objects}\n     3000    0.002    0.000    0.036    0.000 _methods.py:55(_any)\n     2282    0.004    0.000    0.019    0.000 numeric.py:615(flatnonzero)\n       30    0.001    0.000    0.018    0.001 fast_env.py:1239(reset_where)\n      720    0.009    0.000    0.010    0.000 numeric.py:67(zeros_like)\n       30    0.002    0.000    0.007    0.000 benchmark_m2_cpu_hotspots.py:35(choose_legal)\n     1142    0.005    0.000    0.006    0.000 fast_env.py:189(_spawn_exponents)\n      390    0.001    0.000    0.006    0.000 {method 'max' of 'numpy.ndarray' objects}\n      870    0.001    0.000    0.006    0.000 fromnumeric.py:2322(any)\n      390    0.000    0.000    0.005    0.000 _methods.py:39(_amax)\n     2282    0.003    0.000    0.005    0.000 fromnumeric.py:1768(ravel)\n      870    0.002    0.000    0.005    0.000 fromnumeric.py:71(_wrapreduction)\n     4440    0.004    0.000    0.004    0.000 {method 'reshape' of 'numpy.ndarray' objects}\n      720    0.004    0.000    0.004    0.000 {built-in method numpy.arange}\n       90    0.000    0.000    0.004    0.000 {method 'sum' of 'numpy.ndarray' objects}\n       90    0.000    0.000    0.003    0.000 _methods.py:47(_sum)\n       90    0.003    0.000    0.003    0.000 {method 'random' of 'numpy.random._generator.Generator' objects}\n     1920    0.003    0.000    0.003    0.000 {built-in method numpy.zeros}\n      390    0.003    0.000    0.003    0.000 numeric.py:274(full)\n\n\n"
+  },
+  "duplicate_movement": {
+    "terminal_equals_not_next_legal_any": true,
+    "current_state_legal_directional_moves": 4,
+    "selected_action_directional_moves": 1,
+    "post_spawn_terminal_directional_moves": 4,
+    "next_iteration_legal_directional_moves": 4,
+    "steady_state_directional_move_evaluations": 13,
+    "avoidable_duplicate_directional_move_evaluations": 4,
+    "avoidable_directional_move_share_percent": 30.76923076923077,
+    "reusable_contract": [
+      "next_legal supplies the current terminal verdict",
+      "the same next_legal is the next policy illegal-action mask"
+    ]
+  },
+  "microbench_top3_4096": [
+    {
+      "name": "post_spawn_terminal",
+      "us_per_iteration": 17599.87192985647
+    },
+    {
+      "name": "current_legal",
+      "us_per_iteration": 12911.366451589856
+    },
+    {
+      "name": "selected_move_only",
+      "us_per_iteration": 4598.44482757871
+    }
+  ]
+}

@@ -1,63 +1,329 @@
 {
   "models": {
     "ResidualMLP2048": {
+      "backend": "scalar+row-lut",
       "best_closed_loop": {
-        "cpu_utilization_cores": 1.065846948124551,
-        "decisions_per_s": 91638.79655531596,
-        "elapsed_s": 4.469722599998931,
-        "env_count": 4096,
-        "environment_transitions_per_s": 91638.79655531596,
+        "cpu_utilization_cores": 1.266802132642156,
+        "decisions_per_s": 638949.5270444519,
+        "elapsed_s": 2.564208799994958,
+        "env_count": 16384,
         "gpu": {
           "available": true,
-          "gpu_util_max": 12.0,
-          "gpu_util_mean": 10.037037037037036,
-          "gpu_util_min": 9.0,
-          "memory_used_mib_max": 1193.0,
-          "sample_count": 27
+          "gpu_util_max": 61.0,
+          "gpu_util_mean": 56.9375,
+          "gpu_util_min": 54.0,
+          "memory_used_mib_max": 4140.0,
+          "sample_count": 16
         },
         "iterations": 100,
-        "nn_states_per_s": 91638.79655531596,
-        "peak_rss_bytes": 0,
-        "peak_vram_allocated": 68839936,
-        "peak_vram_reserved": 90177536
+        "peak_vram_allocated": 149858816,
+        "peak_vram_reserved": 234881024,
+        "workers": 2
       },
       "config": {
         "execution": "eager",
         "model_only_states_per_s": 1509056.2906798965,
         "precision": "bf16"
       },
-      "gpu_starvation_gate": "FAIL",
-      "model_only_to_closed_loop_ratio": 0.0607258967881368,
-      "pass": false,
+      "gpu_starvation_gate": "PASS",
+      "historical_pre_performance_unblock": {
+        "best_closed_loop": {
+          "cpu_utilization_cores": 1.065846948124551,
+          "decisions_per_s": 91638.79655531596,
+          "elapsed_s": 4.469722599998931,
+          "env_count": 4096,
+          "environment_transitions_per_s": 91638.79655531596,
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 12.0,
+            "gpu_util_mean": 10.037037037037036,
+            "gpu_util_min": 9.0,
+            "memory_used_mib_max": 1193.0,
+            "sample_count": 27
+          },
+          "iterations": 100,
+          "nn_states_per_s": 91638.79655531596,
+          "peak_rss_bytes": 0,
+          "peak_vram_allocated": 68839936,
+          "peak_vram_reserved": 90177536
+        },
+        "gpu_starvation_gate": "FAIL",
+        "model_only_to_closed_loop_ratio": 0.0607258967881368,
+        "pass": false,
+        "profile": {
+          "cpu_h2d_feed_percent": 89.97612443042689,
+          "env_count": 4096,
+          "h2d_effective_bytes_per_s": 100125890.67364024,
+          "h2d_total_bytes": 2457600,
+          "iterations": 30,
+          "pipeline_stall_percent": 2.3365819492535063,
+          "stage_percent": {
+            "action_selection": 1.9071781003408748,
+            "cpu_batch_preparation": 0.03562502133948022,
+            "d2h": 0.3127355417526839,
+            "environment_step": 51.84106768206201,
+            "h2d": 1.9882213861613418,
+            "legal_mask": 36.111210340864055,
+            "nn_inference": 7.761087154987713,
+            "other": 0.0,
+            "reset_where": 0.04287477249182894
+          },
+          "stage_seconds": {
+            "action_selection": 0.023544599978777114,
+            "cpu_batch_preparation": 0.00043979997280985117,
+            "d2h": 0.0038608000104431994,
+            "environment_step": 0.639991199997894,
+            "h2d": 0.02454510000825394,
+            "legal_mask": 0.4458021000100416,
+            "nn_inference": 0.0958126000041375,
+            "reset_where": 0.0005292999994708225
+          }
+        },
+        "safe_pipeline_optimization": {
+          "allowed_changes": [
+            "worker-sharded Fast2048BatchEnv instances",
+            "reused pinned CPU staging buffers",
+            "reused GPU buffers",
+            "non_blocking H2D/D2H copies"
+          ],
+          "baseline_decisions_per_s": 91638.79655531596,
+          "gpu_starvation_gate_after": "FAIL",
+          "model_only_states_per_s": 1509056.2906798965,
+          "model_only_to_closed_loop_ratio_after": 0.06705743906237413,
+          "probes": [
+            {
+              "cpu_utilization_cores": 1.6580459458175452,
+              "decisions_per_s": 101193.4502539595,
+              "elapsed_s": 4.047692799998913,
+              "env_count": 4096,
+              "gpu": {
+                "available": true,
+                "gpu_util_max": 15.0,
+                "gpu_util_mean": 11.25,
+                "gpu_util_min": 9.0,
+                "memory_used_mib_max": 1208.0,
+                "sample_count": 24
+              },
+              "iterations": 100,
+              "peak_vram_allocated": 67987968,
+              "peak_vram_reserved": 90177536,
+              "workers": 2
+            },
+            {
+              "cpu_utilization_cores": 2.011870163870568,
+              "decisions_per_s": 72792.24937411599,
+              "elapsed_s": 5.6269727000035346,
+              "env_count": 4096,
+              "gpu": {
+                "available": true,
+                "gpu_util_max": 10.0,
+                "gpu_util_mean": 9.06060606060606,
+                "gpu_util_min": 7.0,
+                "memory_used_mib_max": 1208.0,
+                "sample_count": 33
+              },
+              "iterations": 100,
+              "peak_vram_allocated": 68643328,
+              "peak_vram_reserved": 90177536,
+              "workers": 4
+            },
+            {
+              "cpu_utilization_cores": 1.7219272032981123,
+              "decisions_per_s": 42500.90119862535,
+              "elapsed_s": 9.637442699997337,
+              "env_count": 4096,
+              "gpu": {
+                "available": true,
+                "gpu_util_max": 7.0,
+                "gpu_util_mean": 7.0,
+                "gpu_util_min": 7.0,
+                "memory_used_mib_max": 1204.0,
+                "sample_count": 58
+              },
+              "iterations": 100,
+              "peak_vram_allocated": 68643328,
+              "peak_vram_reserved": 90177536,
+              "workers": 8
+            }
+          ],
+          "profile_after": {
+            "cpu_h2d_feed_percent": 87.15024018985771,
+            "env_count": 4096,
+            "h2d_effective_bytes_per_s": 478877632.73840904,
+            "h2d_total_bytes": 2457600,
+            "iterations": 30,
+            "pipeline_stall_percent": 1.2294210086346062,
+            "stage_percent": {
+              "action_selection": 2.118643747919715,
+              "cpu_batch_preparation": 0.47246617417502634,
+              "d2h": 0.27303179362318636,
+              "environment_step": 54.38901792788412,
+              "h2d": 0.48392304083639354,
+              "legal_mask": 31.804833046962166,
+              "nn_inference": 10.096037790758974,
+              "other": 0.0,
+              "reset_where": 0.36204647784041843
+            },
+            "stage_seconds": {
+              "action_selection": 0.022468199997092597,
+              "cpu_batch_preparation": 0.005010499997297302,
+              "d2h": 0.002895499987062067,
+              "environment_step": 0.5767951000016183,
+              "h2d": 0.0051319999765837565,
+              "legal_mask": 0.3372900000176742,
+              "nn_inference": 0.10706840000057127,
+              "reset_where": 0.0038395000010496005
+            },
+            "workers": 2
+          },
+          "reason": "baseline MLP triggered starvation gates A and C",
+          "selected_after": {
+            "cpu_utilization_cores": 1.6580459458175452,
+            "decisions_per_s": 101193.4502539595,
+            "elapsed_s": 4.047692799998913,
+            "env_count": 4096,
+            "gpu": {
+              "available": true,
+              "gpu_util_max": 15.0,
+              "gpu_util_mean": 11.25,
+              "gpu_util_min": 9.0,
+              "memory_used_mib_max": 1208.0,
+              "sample_count": 24
+            },
+            "iterations": 100,
+            "peak_vram_allocated": 67987968,
+            "peak_vram_reserved": 90177536,
+            "workers": 2
+          },
+          "starvation_tests_after": {
+            "A": true,
+            "B": false,
+            "C": true
+          },
+          "throughput_improvement_percent": 10.426428606442961
+        },
+        "starvation_tests": {
+          "A": true,
+          "B": false,
+          "C": true
+        }
+      },
+      "model_only_to_closed_loop_ratio": 0.42341000199308465,
+      "pass": true,
       "pass_after_optimization": false,
+      "pass_after_performance_unblock": true,
+      "performance_unblock_final": {
+        "backend": {
+          "kind": "scalar+row-lut",
+          "lut_used": true,
+          "module_file": "D:\\CodexTasks\\NN-2048-ai\\build\\m2_fast_backend\\_m2_fast_backend.cp311-win_amd64.pyd",
+          "simd_used": false
+        },
+        "best_lut_closed_loop": {
+          "cpu_utilization_cores": 1.266802132642156,
+          "decisions_per_s": 638949.5270444519,
+          "elapsed_s": 2.564208799994958,
+          "env_count": 16384,
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 61.0,
+            "gpu_util_mean": 56.9375,
+            "gpu_util_min": 54.0,
+            "memory_used_mib_max": 4140.0,
+            "sample_count": 16
+          },
+          "iterations": 100,
+          "peak_vram_allocated": 149858816,
+          "peak_vram_reserved": 234881024,
+          "workers": 2
+        },
+        "best_scalar_closed_loop": {
+          "cpu_utilization_cores": 1.420862043769358,
+          "decisions_per_s": 591443.4620996366,
+          "elapsed_s": 2.770171799995296,
+          "env_count": 16384,
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 55.0,
+            "gpu_util_mean": 50.625,
+            "gpu_util_min": 45.0,
+            "memory_used_mib_max": 2272.0,
+            "sample_count": 16
+          },
+          "iterations": 100,
+          "peak_vram_allocated": 149858816,
+          "peak_vram_reserved": 234881024,
+          "workers": 2
+        },
+        "best_scalar_to_lut_improvement_percent": 8.032224208915562,
+        "closed_loop_model_only_ratio": 0.42341000199308465,
+        "cpu_h2d_feed_percent": 34.30521233541027,
+        "gpu_mean_percent": 56.9375,
+        "model_only_states_per_s": 1509056.2906798965,
+        "pipeline_stall_percent": 2.12529349694811,
+        "profile_best_lut": {
+          "cpu_h2d_feed_percent": 34.30521233541027,
+          "env_count": 16384,
+          "h2d_effective_bytes_per_s": 1642204441.04265,
+          "iterations": 30,
+          "pipeline_stall_percent": 2.12529349694811,
+          "stage_percent": {
+            "action_selection": 4.174999279301309,
+            "cpu_batch_preparation": 0.8192797553183547,
+            "d2h": 0.5044626205767917,
+            "environment_step": 32.12546087102371,
+            "h2d": 0.8015511210529633,
+            "legal_cache_copy": 0.5589205880152345,
+            "nn_inference": 56.32666478854043,
+            "reset_where": 4.688660976171209
+          },
+          "stage_seconds": {
+            "action_selection": 0.031179499994323123,
+            "cpu_batch_preparation": 0.006118500008597039,
+            "d2h": 0.0037673999977414496,
+            "environment_step": 0.23991759998898488,
+            "h2d": 0.00598609999724431,
+            "legal_cache_copy": 0.00417409999499796,
+            "nn_inference": 0.420655700028874,
+            "reset_where": 0.03501560002769111
+          },
+          "workers": 2
+        },
+        "scalar_baseline_source": "D:\\CodexTasks\\NN-2048-ai\\m2_fast_backend_scalar_benchmark.json",
+        "starvation_pass": true,
+        "starvation_tests": {
+          "A": false,
+          "B": false,
+          "C": false
+        }
+      },
       "profile": {
-        "cpu_h2d_feed_percent": 89.97612443042689,
-        "env_count": 4096,
-        "h2d_effective_bytes_per_s": 100125890.67364024,
-        "h2d_total_bytes": 2457600,
+        "cpu_h2d_feed_percent": 34.30521233541027,
+        "env_count": 16384,
+        "h2d_effective_bytes_per_s": 1642204441.04265,
         "iterations": 30,
-        "pipeline_stall_percent": 2.3365819492535063,
+        "pipeline_stall_percent": 2.12529349694811,
         "stage_percent": {
-          "action_selection": 1.9071781003408748,
-          "cpu_batch_preparation": 0.03562502133948022,
-          "d2h": 0.3127355417526839,
-          "environment_step": 51.84106768206201,
-          "h2d": 1.9882213861613418,
-          "legal_mask": 36.111210340864055,
-          "nn_inference": 7.761087154987713,
-          "other": 0.0,
-          "reset_where": 0.04287477249182894
+          "action_selection": 4.174999279301309,
+          "cpu_batch_preparation": 0.8192797553183547,
+          "d2h": 0.5044626205767917,
+          "environment_step": 32.12546087102371,
+          "h2d": 0.8015511210529633,
+          "legal_cache_copy": 0.5589205880152345,
+          "nn_inference": 56.32666478854043,
+          "reset_where": 4.688660976171209
         },
         "stage_seconds": {
-          "action_selection": 0.023544599978777114,
-          "cpu_batch_preparation": 0.00043979997280985117,
-          "d2h": 0.0038608000104431994,
-          "environment_step": 0.639991199997894,
-          "h2d": 0.02454510000825394,
-          "legal_mask": 0.4458021000100416,
-          "nn_inference": 0.0958126000041375,
-          "reset_where": 0.0005292999994708225
-        }
+          "action_selection": 0.031179499994323123,
+          "cpu_batch_preparation": 0.006118500008597039,
+          "d2h": 0.0037673999977414496,
+          "environment_step": 0.23991759998898488,
+          "h2d": 0.00598609999724431,
+          "legal_cache_copy": 0.00417409999499796,
+          "nn_inference": 0.420655700028874,
+          "reset_where": 0.03501560002769111
+        },
+        "workers": 2
       },
       "safe_pipeline_optimization": {
         "allowed_changes": [
@@ -183,9 +449,9 @@
         "throughput_improvement_percent": 10.426428606442961
       },
       "starvation_tests": {
-        "A": true,
+        "A": false,
         "B": false,
-        "C": true
+        "C": false
       },
       "throughput": [
         {
@@ -417,5 +683,5 @@
       ]
     }
   },
-  "pass": false
+  "pass": true
 }

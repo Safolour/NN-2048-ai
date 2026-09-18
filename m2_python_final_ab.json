@@ -1,0 +1,90 @@
+{
+  "baseline_same_run": {
+    "cpu_utilization_cores": 1.6576937618167795,
+    "decisions_per_s": 107605.17999138324,
+    "elapsed_s": 3.806508200003009,
+    "env_count": 4096,
+    "gpu": {
+      "available": true,
+      "gpu_util_max": 11.0,
+      "gpu_util_mean": 9.863636363636363,
+      "gpu_util_min": 8.0,
+      "memory_used_mib_max": 2123.0,
+      "sample_count": 22
+    },
+    "iterations": 100,
+    "peak_vram_allocated": 67987968,
+    "peak_vram_reserved": 90177536,
+    "workers": 2
+  },
+  "buffer_reuse_decision": {
+    "reason": "P1 measured BatchStepResult/output-copy allocation at only 0.028% of the 4096 CPU decision; no large allocation hotspot exists to justify a separate buffer-reuse rewrite.",
+    "tested_as_new_probe": false
+  },
+  "cached_next_legal": {
+    "cpu_utilization_cores": 1.6180867150916418,
+    "decisions_per_s": 112912.16178118618,
+    "elapsed_s": 3.6275985999964178,
+    "env_count": 4096,
+    "gpu": {
+      "available": true,
+      "gpu_util_max": 14.0,
+      "gpu_util_mean": 11.909090909090908,
+      "gpu_util_min": 10.0,
+      "memory_used_mib_max": 2123.0,
+      "sample_count": 22
+    },
+    "iterations": 100,
+    "peak_vram_allocated": 68643328,
+    "peak_vram_reserved": 90177536,
+    "workers": 2
+  },
+  "cached_profile": {
+    "cpu_h2d_feed_percent": 84.23380310017156,
+    "env_count": 4096,
+    "h2d_effective_bytes_per_s": 480628948.5766501,
+    "iterations": 30,
+    "pipeline_stall_percent": 1.3303472073854061,
+    "stage_percent": {
+      "action_selection": 2.767229646985606,
+      "cpu_batch_preparation": 0.38653152555743986,
+      "d2h": 0.37854994797170066,
+      "environment_step": 65.46598135786745,
+      "h2d": 0.5652657338562658,
+      "legal_mask_or_cache": 17.81602448289041,
+      "nn_inference": 10.932491131115608,
+      "reset_where": 1.6879261737555242
+    },
+    "stage_seconds": {
+      "action_selection": 0.0250319000260788,
+      "cpu_batch_preparation": 0.0034965000158990733,
+      "d2h": 0.0034242999900016002,
+      "environment_step": 0.5921944000001531,
+      "h2d": 0.005113299994263798,
+      "legal_mask_or_cache": 0.16116080000938382,
+      "nn_inference": 0.09889349997683894,
+      "reset_where": 0.015268699971784372
+    },
+    "workers": 2
+  },
+  "closed_loop_model_only_ratio": 0.07482302845728456,
+  "correctness_probe": {
+    "env_count": 256,
+    "pass": true,
+    "steps": 200
+  },
+  "historical_tuned_baseline_decisions_per_s": 101193.4502539595,
+  "improvement_percent_same_run": 4.93190178226357,
+  "improvement_percent_vs_historical_tuned": 11.580503973149337,
+  "model_only_states_per_s": 1509056.2906798965,
+  "process_probe_decision": {
+    "reason": "P1 cProfile is dominated by NumPy movement primitives; there is no profiler evidence that GIL contention is the bottleneck. Existing 2-thread gain and 4/8-thread regressions are retained as prior evidence.",
+    "tested": false
+  },
+  "starvation_pass": false,
+  "starvation_tests": {
+    "A": true,
+    "B": false,
+    "C": true
+  }
+}

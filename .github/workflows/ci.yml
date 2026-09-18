@@ -1,7 +1,8 @@
 name: CI
 
 # Mandatory CPU regression gate from M2 Preflight onwards. It always runs the
-# complete CPU-testable suite, including frozen M0/M1 regressions.
+# complete CPU-testable suite, including frozen M0/M1 regressions and the M2
+# pybind11 fast-backend differential tests.
 on:
   push:
   pull_request:
@@ -23,16 +24,26 @@ jobs:
       - name: Install CPU test dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install numpy pytest
+          python -m pip install numpy pytest pybind11==3.1.0
           python -m pip install torch==2.9.1 --index-url https://download.pytorch.org/whl/cpu
 
       - name: Show environment
         run: |
           python --version
+          cmake --version
+          c++ --version
           python -c "import numpy; print('numpy', numpy.__version__)"
           python -c "import pytest; print('pytest', pytest.__version__)"
+          python -c "import pybind11; print('pybind11', pybind11.__version__)"
           python -c "import torch; print('torch', torch.__version__); print('cuda', torch.version.cuda); print('cuda_available', torch.cuda.is_available())"
+
+      - name: Build M2 C++ fast backend
+        run: |
+          cmake -S cpp/m2_fast_backend -B build/m2_fast_backend \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPython_EXECUTABLE="$(which python)" \
+            -Dpybind11_DIR="$(python -m pybind11 --cmakedir)"
+          cmake --build build/m2_fast_backend --config Release
 
       - name: Run full pytest suite
         run: python -m pytest
-
