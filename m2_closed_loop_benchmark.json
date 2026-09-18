@@ -1,23 +1,115 @@
 {
   "models": {
     "ResidualMLP2048": {
+      "adaptive_scale_extension": {
+        "continue_to_65536": false,
+        "probe_32768": {
+          "closed_loop": {
+            "cpu_utilization_cores": 1.2806755911190706,
+            "decisions_per_s": 704818.0252912077,
+            "elapsed_s": 4.649143299997377,
+            "env_count": 32768,
+            "gpu": {
+              "available": true,
+              "gpu_util_max": 67.0,
+              "gpu_util_mean": 60.714285714285715,
+              "gpu_util_min": 56.0,
+              "memory_used_mib_max": 4524.0,
+              "sample_count": 28
+            },
+            "iterations": 100,
+            "peak_rss_bytes": 0,
+            "peak_vram_allocated": 255961600,
+            "peak_vram_reserved": 411041792,
+            "status": "PASS",
+            "system_memory": {
+              "available": true,
+              "max_memory_load_percent": 96,
+              "min_available_pagefile_bytes": 1277259776,
+              "min_available_phys_bytes": 648470528,
+              "sample_count": 94,
+              "total_phys_bytes": 16422010880
+            },
+            "total_vram_bytes": 8546484224,
+            "workers": 2
+          },
+          "closed_loop_model_only_ratio": 0.4670588033357298,
+          "cpu_h2d_feed_percent": 31.06351153997785,
+          "model_only_states_per_s": 1509056.2906798965,
+          "pipeline_stall_percent": 1.2081241541271566,
+          "profile": {
+            "cpu_h2d_feed_percent": 31.06351153997785,
+            "env_count": 32768,
+            "h2d_effective_bytes_per_s": 3041113686.3450117,
+            "iterations": 30,
+            "pipeline_stall_percent": 1.2081241541271566,
+            "stage_percent": {
+              "action_selection": 2.3948411487568375,
+              "cpu_batch_preparation": 0.4271441234888232,
+              "d2h": 0.30259341182788996,
+              "environment_step": 29.832515105650426,
+              "h2d": 0.4783866188104434,
+              "legal_cache_copy": 0.32546569202815806,
+              "nn_inference": 63.14436235658829,
+              "reset_where": 3.094691542849124
+            },
+            "stage_seconds": {
+              "action_selection": 0.03236429998651147,
+              "cpu_batch_preparation": 0.005772500007878989,
+              "d2h": 0.004089300018677022,
+              "environment_step": 0.4031617999935406,
+              "h2d": 0.0064650000058463775,
+              "legal_cache_copy": 0.004398399993078783,
+              "nn_inference": 0.8533439000020735,
+              "reset_where": 0.04182219998619985
+            },
+            "workers": 2
+          },
+          "starvation_pass": true,
+          "starvation_tests": {
+            "A": false,
+            "B": false,
+            "C": false
+          }
+        },
+        "relative_gain_vs_16384_percent": 10.308873464769519,
+        "selected_systems_config": {
+          "decisions_per_s": 704818.0252912077,
+          "env_count": 32768,
+          "reason": "highest stable measured end-to-end decisions/s; 65536 was not eligible because the 32768 run showed obvious host RAM pressure",
+          "resource_note": "selected for throughput, but no further scale headroom is claimed on the measured 16 GiB host"
+        },
+        "stop_reason": "32768 improved >=5% and completed stably, but host RAM pressure was already high (96% load; <1 GiB minimum available physical RAM), so \u00a727.3 forbids further scale expansion to 65536.",
+        "trigger": "16384 LUT closed-loop improved >=5% over 8192, so \u00a727.3 requires 32768 validation"
+      },
       "backend": "scalar+row-lut",
       "best_closed_loop": {
-        "cpu_utilization_cores": 1.266802132642156,
-        "decisions_per_s": 638949.5270444519,
-        "elapsed_s": 2.564208799994958,
-        "env_count": 16384,
+        "cpu_utilization_cores": 1.2806755911190706,
+        "decisions_per_s": 704818.0252912077,
+        "elapsed_s": 4.649143299997377,
+        "env_count": 32768,
         "gpu": {
           "available": true,
-          "gpu_util_max": 61.0,
-          "gpu_util_mean": 56.9375,
-          "gpu_util_min": 54.0,
-          "memory_used_mib_max": 4140.0,
-          "sample_count": 16
+          "gpu_util_max": 67.0,
+          "gpu_util_mean": 60.714285714285715,
+          "gpu_util_min": 56.0,
+          "memory_used_mib_max": 4524.0,
+          "sample_count": 28
         },
         "iterations": 100,
-        "peak_vram_allocated": 149858816,
-        "peak_vram_reserved": 234881024,
+        "peak_rss_bytes": 0,
+        "peak_vram_allocated": 255961600,
+        "peak_vram_reserved": 411041792,
+        "status": "PASS",
+        "system_memory": {
+          "available": true,
+          "max_memory_load_percent": 96,
+          "min_available_pagefile_bytes": 1277259776,
+          "min_available_phys_bytes": 648470528,
+          "sample_count": 94,
+          "total_phys_bytes": 16422010880
+        },
+        "total_vram_bytes": 8546484224,
         "workers": 2
       },
       "config": {
@@ -208,11 +300,16 @@
           "C": true
         }
       },
-      "model_only_to_closed_loop_ratio": 0.42341000199308465,
+      "model_only_to_closed_loop_ratio": 0.4670588033357298,
       "pass": true,
       "pass_after_optimization": false,
       "pass_after_performance_unblock": true,
       "performance_unblock_final": {
+        "adaptive_scale_extension": {
+          "continue_to_65536": false,
+          "relative_gain_vs_16384_percent": 10.308873464769519,
+          "stop_reason": "32768 improved >=5% and completed stably, but host RAM pressure was already high (96% load; <1 GiB minimum available physical RAM), so \u00a727.3 forbids further scale expansion to 65536."
+        },
         "backend": {
           "kind": "scalar+row-lut",
           "lut_used": true,
@@ -220,21 +317,32 @@
           "simd_used": false
         },
         "best_lut_closed_loop": {
-          "cpu_utilization_cores": 1.266802132642156,
-          "decisions_per_s": 638949.5270444519,
-          "elapsed_s": 2.564208799994958,
-          "env_count": 16384,
+          "cpu_utilization_cores": 1.2806755911190706,
+          "decisions_per_s": 704818.0252912077,
+          "elapsed_s": 4.649143299997377,
+          "env_count": 32768,
           "gpu": {
             "available": true,
-            "gpu_util_max": 61.0,
-            "gpu_util_mean": 56.9375,
-            "gpu_util_min": 54.0,
-            "memory_used_mib_max": 4140.0,
-            "sample_count": 16
+            "gpu_util_max": 67.0,
+            "gpu_util_mean": 60.714285714285715,
+            "gpu_util_min": 56.0,
+            "memory_used_mib_max": 4524.0,
+            "sample_count": 28
           },
           "iterations": 100,
-          "peak_vram_allocated": 149858816,
-          "peak_vram_reserved": 234881024,
+          "peak_rss_bytes": 0,
+          "peak_vram_allocated": 255961600,
+          "peak_vram_reserved": 411041792,
+          "status": "PASS",
+          "system_memory": {
+            "available": true,
+            "max_memory_load_percent": 96,
+            "min_available_pagefile_bytes": 1277259776,
+            "min_available_phys_bytes": 648470528,
+            "sample_count": 94,
+            "total_phys_bytes": 16422010880
+          },
+          "total_vram_bytes": 8546484224,
           "workers": 2
         },
         "best_scalar_closed_loop": {
@@ -256,40 +364,41 @@
           "workers": 2
         },
         "best_scalar_to_lut_improvement_percent": 8.032224208915562,
-        "closed_loop_model_only_ratio": 0.42341000199308465,
-        "cpu_h2d_feed_percent": 34.30521233541027,
-        "gpu_mean_percent": 56.9375,
+        "closed_loop_model_only_ratio": 0.4670588033357298,
+        "cpu_h2d_feed_percent": 31.06351153997785,
+        "gpu_mean_percent": 60.714285714285715,
         "model_only_states_per_s": 1509056.2906798965,
-        "pipeline_stall_percent": 2.12529349694811,
+        "pipeline_stall_percent": 1.2081241541271566,
         "profile_best_lut": {
-          "cpu_h2d_feed_percent": 34.30521233541027,
-          "env_count": 16384,
-          "h2d_effective_bytes_per_s": 1642204441.04265,
+          "cpu_h2d_feed_percent": 31.06351153997785,
+          "env_count": 32768,
+          "h2d_effective_bytes_per_s": 3041113686.3450117,
           "iterations": 30,
-          "pipeline_stall_percent": 2.12529349694811,
+          "pipeline_stall_percent": 1.2081241541271566,
           "stage_percent": {
-            "action_selection": 4.174999279301309,
-            "cpu_batch_preparation": 0.8192797553183547,
-            "d2h": 0.5044626205767917,
-            "environment_step": 32.12546087102371,
-            "h2d": 0.8015511210529633,
-            "legal_cache_copy": 0.5589205880152345,
-            "nn_inference": 56.32666478854043,
-            "reset_where": 4.688660976171209
+            "action_selection": 2.3948411487568375,
+            "cpu_batch_preparation": 0.4271441234888232,
+            "d2h": 0.30259341182788996,
+            "environment_step": 29.832515105650426,
+            "h2d": 0.4783866188104434,
+            "legal_cache_copy": 0.32546569202815806,
+            "nn_inference": 63.14436235658829,
+            "reset_where": 3.094691542849124
           },
           "stage_seconds": {
-            "action_selection": 0.031179499994323123,
-            "cpu_batch_preparation": 0.006118500008597039,
-            "d2h": 0.0037673999977414496,
-            "environment_step": 0.23991759998898488,
-            "h2d": 0.00598609999724431,
-            "legal_cache_copy": 0.00417409999499796,
-            "nn_inference": 0.420655700028874,
-            "reset_where": 0.03501560002769111
+            "action_selection": 0.03236429998651147,
+            "cpu_batch_preparation": 0.005772500007878989,
+            "d2h": 0.004089300018677022,
+            "environment_step": 0.4031617999935406,
+            "h2d": 0.0064650000058463775,
+            "legal_cache_copy": 0.004398399993078783,
+            "nn_inference": 0.8533439000020735,
+            "reset_where": 0.04182219998619985
           },
           "workers": 2
         },
         "scalar_baseline_source": "D:\\CodexTasks\\NN-2048-ai\\m2_fast_backend_scalar_benchmark.json",
+        "selected_env_count": 32768,
         "starvation_pass": true,
         "starvation_tests": {
           "A": false,
@@ -298,30 +407,30 @@
         }
       },
       "profile": {
-        "cpu_h2d_feed_percent": 34.30521233541027,
-        "env_count": 16384,
-        "h2d_effective_bytes_per_s": 1642204441.04265,
+        "cpu_h2d_feed_percent": 31.06351153997785,
+        "env_count": 32768,
+        "h2d_effective_bytes_per_s": 3041113686.3450117,
         "iterations": 30,
-        "pipeline_stall_percent": 2.12529349694811,
+        "pipeline_stall_percent": 1.2081241541271566,
         "stage_percent": {
-          "action_selection": 4.174999279301309,
-          "cpu_batch_preparation": 0.8192797553183547,
-          "d2h": 0.5044626205767917,
-          "environment_step": 32.12546087102371,
-          "h2d": 0.8015511210529633,
-          "legal_cache_copy": 0.5589205880152345,
-          "nn_inference": 56.32666478854043,
-          "reset_where": 4.688660976171209
+          "action_selection": 2.3948411487568375,
+          "cpu_batch_preparation": 0.4271441234888232,
+          "d2h": 0.30259341182788996,
+          "environment_step": 29.832515105650426,
+          "h2d": 0.4783866188104434,
+          "legal_cache_copy": 0.32546569202815806,
+          "nn_inference": 63.14436235658829,
+          "reset_where": 3.094691542849124
         },
         "stage_seconds": {
-          "action_selection": 0.031179499994323123,
-          "cpu_batch_preparation": 0.006118500008597039,
-          "d2h": 0.0037673999977414496,
-          "environment_step": 0.23991759998898488,
-          "h2d": 0.00598609999724431,
-          "legal_cache_copy": 0.00417409999499796,
-          "nn_inference": 0.420655700028874,
-          "reset_where": 0.03501560002769111
+          "action_selection": 0.03236429998651147,
+          "cpu_batch_preparation": 0.005772500007878989,
+          "d2h": 0.004089300018677022,
+          "environment_step": 0.4031617999935406,
+          "h2d": 0.0064650000058463775,
+          "legal_cache_copy": 0.004398399993078783,
+          "nn_inference": 0.8533439000020735,
+          "reset_where": 0.04182219998619985
         },
         "workers": 2
       },

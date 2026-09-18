@@ -134,7 +134,14 @@ Local kernel speed is diagnostic only; the retention decision is based on closed
 | 8192 | 558,786.10 | 524,129.56 | -6.20% |
 | 16384 | 591,443.46 | 638,949.53 | +8.03% |
 
-Although smaller batches regressed, the primary metric is the best ResidualMLP closed-loop decisions/s. The row-LUT path raises the best closed-loop result from 591,443.46 to 638,949.53 decisions/s (+8.03%), exceeding the 5% retention threshold.
+Although smaller batches regressed, the primary metric is the best ResidualMLP closed-loop decisions/s. The row-LUT path raises the 16,384-env result from 591,443.46 to 638,949.53 decisions/s (+8.03%), exceeding the 5% retention threshold.
+
+Post-candidate §27.3 adaptive-scale validation then measured the production LUT backend at 32,768 envs without rerunning old scalar baselines:
+
+- 32,768 envs: 704,818.03 decisions/s
+- gain vs 16,384 LUT: +10.31%
+- run status: PASS, 100 measured iterations, 4.649 s
+- 65,536 envs: NOT RUN because the 32,768 run hit the host-RAM pressure stop condition
 
 ## 11. STARVATION GATE BEFORE PERFORMANCE UNBLOCK
 
@@ -151,33 +158,34 @@ Transformer was already PASS with A=False, B=False, C=False.
 
 ## 12. STARVATION GATE AFTER FINAL LUT BACKEND
 
-ResidualMLP final best at 16,384 envs:
+After the §27.3 adaptive-scale extension, the selected ResidualMLP systems configuration is 32,768 envs:
 
-- closed-loop: 638,949.53 decisions/s
-- GPU mean: 56.94%
-- CPU environment + batch/H2D feed: 34.31%
-- closed-loop/model-only: 42.34%
-- pipeline stall: 2.13%
+- closed-loop: 704,818.03 decisions/s
+- GPU mean/min/max: 60.71% / 56.0% / 67.0%
+- CPU utilization: 1.281 logical-core equivalents
+- CPU environment + batch/H2D feed: 31.06%
+- closed-loop/model-only: 46.71%
+- pipeline stall: 1.21%
 - A=False
 - B=False
 - C=False
 
-Therefore the ResidualMLP performance-unblock gate is PASS. Transformer remains PASS.
+The 32,768 run completed stably and is the highest measured end-to-end throughput. It also showed host-RAM pressure (maximum system memory load 96%, minimum available physical RAM 648,470,528 bytes), so §27.3 stopped expansion before 65,536. Therefore the ResidualMLP performance-unblock gate remains PASS, but no larger scale headroom is claimed on this measured 16 GiB host. Transformer remains PASS.
 
 ## 13. REMAINING BOTTLENECK
 
-At the final 16,384-env LUT operating point:
+At the final selected 32,768-env LUT operating point:
 
-- NN inference: 56.33% of measured decision wall time
-- environment step: 32.13%
-- reset_where: 4.69%
-- action selection: 4.17%
-- legal cache copy: 0.56%
-- CPU batch preparation: 0.82%
-- H2D: 0.80%
-- D2H: 0.50%
+- NN inference: 63.14% of measured decision wall time
+- environment step: 29.83%
+- reset_where: 3.09%
+- action selection: 2.39%
+- legal cache copy: 0.33%
+- CPU batch preparation: 0.43%
+- H2D: 0.48%
+- D2H: 0.30%
 
-The largest component is now NN inference, and CPU/H2D feed is below the 40% starvation threshold. No post-LUT profile is required by the gate logic and there is no formal evidence justifying SIMD. SIMD remains unimplemented.
+The largest component is NN inference, while CPU/H2D feed is 31.06%, below the 40% starvation threshold. There is still no formal evidence justifying SIMD. The adaptive-scale stop is host RAM pressure, not movement/legal throughput.
 
 ## 14. MLP 16384 GPU-ONLY RESULT
 
@@ -188,7 +196,7 @@ ResidualMLP BF16 eager GPU-only:
 - 16384 vs 8192: -22.38%
 - 16384 status: PASS
 
-Because the 16384 point did not improve by at least 5%, batch 32768 was not measured. The selected model-only inference point remains BF16 eager batch 8192.
+Because the 16,384 GPU-only point did not improve by at least 5%, GPU-only batch 32,768 was not measured. This is separate from §27.3 closed-loop adaptive scaling, where 32,768 envs was measured. The selected model-only inference point remains BF16 eager batch 8192.
 
 ## 15. COMPILE-TRAINING VALIDATION CORRECTION
 
@@ -222,7 +230,7 @@ All original 487 tests remain; total test count is greater than 487.
 
 docs/M2_FAST_BACKEND_BUILD.md documents the MSVC requirement, dependencies, CMake configure/build, extension output and pytest command.
 
-Remote GitHub Actions status is intentionally not claimed in this pre-push report. The candidate is only complete after the pushed candidate commit receives an actual passing Actions run.
+The provisional candidate commit 52c40dad5908fd4dce46bb15ebde581f1bc6a8d5 was pushed and GitHub Actions run #8 completed successfully, including the Ubuntu C++ backend build and full pytest. The supplemental adaptive-scale follow-up requires its own post-push Actions run before the supplemental validation is handed back to audit.
 
 ## 18. FINAL ARTIFACTS
 
@@ -254,8 +262,68 @@ m2_closed_loop_benchmark.json now preserves historical pre-unblock evidence whil
 
 ## 20. CANDIDATE STATE
 
-Local candidate criteria are satisfied. The intended candidate commit message is:
+The provisional candidate commit is:
 
+52c40dad5908fd4dce46bb15ebde581f1bc6a8d5
 m2: unblock pipeline performance and complete candidate
 
-The commit must be pushed and actual GitHub Actions must pass before reporting M2 CANDIDATE COMPLETE. This report does not claim M2 AUDITED PASS and does not authorize M3.
+Its GitHub Actions run #8 completed successfully. This post-candidate supplemental validation does not rewrite that history; it will be delivered as a normal follow-up commit.
+
+This report does not claim M2 AUDITED PASS and does not authorize M3.
+
+## 21. POST-CANDIDATE SUPPLEMENTAL VALIDATION — §27.3 CLOSED-LOOP ADAPTIVE SCALE
+
+The latest implementation prompt added §27.3 after the provisional candidate. The existing production LUT closed-loop result at 16,384 envs was 638,949.53 decisions/s versus 524,129.56 at 8,192 envs, a gain of more than 5%, so 32,768 envs was mandatory.
+
+The supplemental run reused the exact formal P8/P9 path:
+
+- ResidualMLP2048
+- BF16 eager inference
+- scalar+row-lut backend
+- 2-worker rollout runner
+- existing pinned CPU / GPU staging path
+- 20 warmup iterations
+- at least 100 measured iterations and at least 2 seconds
+- the same 30-iteration stage profile
+- unchanged starvation gate definitions
+
+### 32,768-env result
+
+- env_count: 32,768
+- decisions/s: 704,818.03
+- relative gain vs 16,384: +10.31%
+- iterations: 100
+- measured elapsed: 4.649 s
+- GPU mean/min/max: 60.71% / 56.0% / 67.0%
+- CPU utilization: 1.281 logical-core equivalents
+- NVIDIA memory-used max: 4,524 MiB
+- Torch peak VRAM allocated: 255,961,600 bytes
+- Torch peak VRAM reserved: 411,041,792 bytes
+- total VRAM: 8,546,484,224 bytes
+- peak reserved / total VRAM: 4.81%
+- host RAM total: 16,422,010,880 bytes
+- maximum host memory load during measurement: 96%
+- minimum available physical RAM: 648,470,528 bytes
+- minimum available pagefile: 1,277,259,776 bytes
+- CPU/H2D feed: 31.06%
+- pipeline stall: 1.21%
+- closed-loop/model-only: 46.71%
+- Gate A: False
+- Gate B: False
+- Gate C: False
+
+### 65,536 decision
+
+65,536 envs was not run. Although 32,768 improved throughput by more than 5% and completed without OOM, the host-RAM pressure stop condition fired: memory load reached 96% and available physical memory dropped below 1 GiB. VRAM was not the limiting resource.
+
+### Final selected systems configuration
+
+The highest stable measured end-to-end throughput is the 32,768-env point at 704,818.03 decisions/s. It is selected as the final measured systems configuration, with an explicit operational caveat that the measured 16 GiB host has no demonstrated headroom for further scale expansion.
+
+Final P9 at the selected scale remains:
+
+A=False
+B=False
+C=False
+
+No SIMD work was performed. No M2 tag was created. The master plan was not marked frozen. M3 and tuple checkpoint work were not started.
