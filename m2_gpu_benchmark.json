@@ -1,0 +1,1207 @@
+{
+  "environment": {
+    "bf16_supported": true,
+    "cuda_runtime": "13.0",
+    "fp16_required": false,
+    "gpu": "NVIDIA GeForce RTX 5060 Laptop GPU",
+    "torch": "2.9.1+cu130"
+  },
+  "models": {
+    "ResidualMLP2048": {
+      "best_inference_eager": {
+        "batch": 8192,
+        "elapsed_s": 2.0031380000000354,
+        "execution": "eager",
+        "gpu": {
+          "available": true,
+          "gpu_util_max": 91.0,
+          "gpu_util_mean": 88.07692307692308,
+          "gpu_util_min": 76.0,
+          "memory_used_mib_max": 1049.0,
+          "sample_count": 13
+        },
+        "iterations": 369,
+        "latency_ms": 5.428558265582752,
+        "peak_allocated": 103328256,
+        "peak_reserved": 148897792,
+        "precision": "bf16",
+        "states_per_s": 1509056.2906798965,
+        "status": "PASS"
+      },
+      "best_training_eager": {
+        "batch": 8192,
+        "board_forwards_per_s": 464581.5676529519,
+        "elapsed_s": 3.5266142999971635,
+        "execution": "eager",
+        "gpu": {
+          "available": true,
+          "gpu_util_max": 95.0,
+          "gpu_util_mean": 91.76923076923077,
+          "gpu_util_min": 78.0,
+          "memory_used_mib_max": 1975.0,
+          "sample_count": 26
+        },
+        "iterations": 100,
+        "peak_allocated": 870191616,
+        "peak_reserved": 933232640,
+        "precision": "bf16",
+        "samples_per_s": 232290.78382647596,
+        "status": "PASS",
+        "step_ms": 35.266142999971635
+      },
+      "compile_comparisons": [
+        {
+          "batch": 1024,
+          "inference": {
+            "batch": 1024,
+            "error": "TritonMissing('Cannot find a working triton installation. Either the package is not installed or it is too old. More information on installing Triton can be found at: https://github.com/triton-lang/triton\\n\\nSet TORCHDYNAMO_VERBOSE=1 for the internal stack trace (please do this especially if you\\'re reporting a bug to PyTorch). For even more developer context, set TORCH_LOGS=\"+dynamo\"\\n')",
+            "execution": "compile",
+            "precision": "bf16",
+            "status": "FAILED",
+            "traceback": "Traceback (most recent call last):\n  File \"D:\\CodexTasks\\NN-2048-ai\\benchmarks\\benchmark_m2_gpu.py\", line 62, in inference_point\n    iterations, elapsed = timed_cuda_loop(torch, body)\n                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\CodexTasks\\NN-2048-ai\\benchmarks\\_m2_utils.py\", line 85, in timed_cuda_loop\n    body()\n  File \"D:\\CodexTasks\\NN-2048-ai\\benchmarks\\benchmark_m2_gpu.py\", line 57, in body\n    out = model(boards)\n          ^^^^^^^^^^^^^\n  File \"D:\\sd-webui-forge-aki-v1.0\\python\\Lib\\site-packages\\torch\\_dynamo\\eval_frame.py\", line 414, in __call__\n    return super().__call__(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\sd-webui-forge-aki-v1.0\\python\\Lib\\site-packages\\torch\\nn\\modules\\module.py\", line 1775, in _wrapped_call_impl\n    return self._call_impl(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\sd-webui-forge-aki-v1.0\\python\\Lib\\site-packages\\torch\\nn\\modules\\module.py\", line 1786, in _call_impl\n    return forward_call(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\sd-webui-forge-aki-v1.0\\python\\Lib\\site-packages\\torch\\_dynamo\\eval_frame.py\", line 845, in compile_wrapper\n    raise e.remove_dynamo_frames() from None  # see TORCHDYNAMO_VERBOSE=1\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\sd-webui-forge-aki-v1.0\\python\\Lib\\site-packages\\torch\\_inductor\\scheduler.py\", line 4590, in create_backend\n    raise TritonMissing(inspect.currentframe())\ntorch._inductor.exc.TritonMissing: Cannot find a working triton installation. Either the package is not installed or it is too old. More information on installing Triton can be found at: https://github.com/triton-lang/triton\n\nSet TORCHDYNAMO_VERBOSE=1 for the internal stack trace (please do this especially if you're reporting a bug to PyTorch). For even more developer context, set TORCH_LOGS=\"+dynamo\"\n\n"
+          },
+          "precision": "bf16",
+          "training": {
+            "batch": 1024,
+            "board_forwards_per_s": 91975.62933258008,
+            "elapsed_s": 2.2266767999972217,
+            "execution": "compile",
+            "gpu": {
+              "available": true,
+              "gpu_util_max": 32.0,
+              "gpu_util_mean": 27.6875,
+              "gpu_util_min": 5.0,
+              "memory_used_mib_max": 1205.0,
+              "sample_count": 16
+            },
+            "iterations": 100,
+            "peak_allocated": 193442304,
+            "peak_reserved": 222298112,
+            "precision": "bf16",
+            "samples_per_s": 45987.81466629004,
+            "status": "PASS",
+            "step_ms": 22.266767999972217
+          }
+        },
+        {
+          "batch": 8192,
+          "inference": {
+            "batch": 8192,
+            "error": "TritonMissing('Cannot find a working triton installation. Either the package is not installed or it is too old. More information on installing Triton can be found at: https://github.com/triton-lang/triton\\n\\nSet TORCHDYNAMO_VERBOSE=1 for the internal stack trace (please do this especially if you\\'re reporting a bug to PyTorch). For even more developer context, set TORCH_LOGS=\"+dynamo\"\\n')",
+            "execution": "compile",
+            "precision": "bf16",
+            "status": "FAILED",
+            "traceback": "Traceback (most recent call last):\n  File \"D:\\CodexTasks\\NN-2048-ai\\benchmarks\\benchmark_m2_gpu.py\", line 62, in inference_point\n    iterations, elapsed = timed_cuda_loop(torch, body)\n                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\CodexTasks\\NN-2048-ai\\benchmarks\\_m2_utils.py\", line 85, in timed_cuda_loop\n    body()\n  File \"D:\\CodexTasks\\NN-2048-ai\\benchmarks\\benchmark_m2_gpu.py\", line 57, in body\n    out = model(boards)\n          ^^^^^^^^^^^^^\n  File \"D:\\sd-webui-forge-aki-v1.0\\python\\Lib\\site-packages\\torch\\_dynamo\\eval_frame.py\", line 414, in __call__\n    return super().__call__(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\sd-webui-forge-aki-v1.0\\python\\Lib\\site-packages\\torch\\nn\\modules\\module.py\", line 1775, in _wrapped_call_impl\n    return self._call_impl(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\sd-webui-forge-aki-v1.0\\python\\Lib\\site-packages\\torch\\nn\\modules\\module.py\", line 1786, in _call_impl\n    return forward_call(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\sd-webui-forge-aki-v1.0\\python\\Lib\\site-packages\\torch\\_dynamo\\eval_frame.py\", line 845, in compile_wrapper\n    raise e.remove_dynamo_frames() from None  # see TORCHDYNAMO_VERBOSE=1\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\sd-webui-forge-aki-v1.0\\python\\Lib\\site-packages\\torch\\_inductor\\scheduler.py\", line 4590, in create_backend\n    raise TritonMissing(inspect.currentframe())\ntorch._inductor.exc.TritonMissing: Cannot find a working triton installation. Either the package is not installed or it is too old. More information on installing Triton can be found at: https://github.com/triton-lang/triton\n\nSet TORCHDYNAMO_VERBOSE=1 for the internal stack trace (please do this especially if you're reporting a bug to PyTorch). For even more developer context, set TORCH_LOGS=\"+dynamo\"\n\n"
+          },
+          "precision": "bf16",
+          "training": {
+            "batch": 8192,
+            "board_forwards_per_s": 465229.5171087753,
+            "elapsed_s": 3.5217026000027545,
+            "execution": "compile",
+            "gpu": {
+              "available": true,
+              "gpu_util_max": 95.0,
+              "gpu_util_mean": 89.65384615384616,
+              "gpu_util_min": 6.0,
+              "memory_used_mib_max": 1883.0,
+              "sample_count": 26
+            },
+            "iterations": 100,
+            "peak_allocated": 870191616,
+            "peak_reserved": 933232640,
+            "precision": "bf16",
+            "samples_per_s": 232614.75855438766,
+            "status": "PASS",
+            "step_ms": 35.217026000027545
+          }
+        }
+      ],
+      "inference_eager": [
+        {
+          "batch": 256,
+          "elapsed_s": 2.0021526999989874,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 97.0,
+            "gpu_util_mean": 52.46153846153846,
+            "gpu_util_min": 40.0,
+            "memory_used_mib_max": 1130.0,
+            "sample_count": 13
+          },
+          "iterations": 849,
+          "latency_ms": 2.3582481743215395,
+          "peak_allocated": 41151488,
+          "peak_reserved": 46137344,
+          "precision": "fp32",
+          "states_per_s": 108555.156657187,
+          "status": "PASS"
+        },
+        {
+          "batch": 512,
+          "elapsed_s": 2.0017893000040203,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 80.0,
+            "gpu_util_mean": 71.76923076923077,
+            "gpu_util_min": 36.0,
+            "memory_used_mib_max": 1049.0,
+            "sample_count": 13
+          },
+          "iterations": 747,
+          "latency_ms": 2.6797714859491575,
+          "peak_allocated": 43154432,
+          "peak_reserved": 46137344,
+          "precision": "fp32",
+          "states_per_s": 191061.06721583128,
+          "status": "PASS"
+        },
+        {
+          "batch": 1024,
+          "elapsed_s": 2.0012397000027704,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 82.0,
+            "gpu_util_mean": 77.76923076923077,
+            "gpu_util_min": 54.0,
+            "memory_used_mib_max": 1067.0,
+            "sample_count": 13
+          },
+          "iterations": 904,
+          "latency_ms": 2.2137607300915603,
+          "peak_allocated": 47160320,
+          "peak_reserved": 65011712,
+          "precision": "fp32",
+          "states_per_s": 462561.28138909023,
+          "status": "PASS"
+        },
+        {
+          "batch": 2048,
+          "elapsed_s": 2.0005925000004936,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 88.0,
+            "gpu_util_mean": 82.0,
+            "gpu_util_min": 53.0,
+            "memory_used_mib_max": 1116.0,
+            "sample_count": 13
+          },
+          "iterations": 555,
+          "latency_ms": 3.6046711711720607,
+          "peak_allocated": 56220672,
+          "peak_reserved": 65011712,
+          "precision": "fp32",
+          "states_per_s": 568151.6850631598,
+          "status": "PASS"
+        },
+        {
+          "batch": 4096,
+          "elapsed_s": 2.0006426999971154,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 94.0,
+            "gpu_util_mean": 92.28571428571429,
+            "gpu_util_min": 87.0,
+            "memory_used_mib_max": 1158.0,
+            "sample_count": 14
+          },
+          "iterations": 271,
+          "latency_ms": 7.38244538744323,
+          "peak_allocated": 71195648,
+          "peak_reserved": 75497472,
+          "precision": "fp32",
+          "states_per_s": 554829.7054749458,
+          "status": "PASS"
+        },
+        {
+          "batch": 8192,
+          "elapsed_s": 2.004057099999045,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 97.0,
+            "gpu_util_mean": 96.86666666666666,
+            "gpu_util_min": 96.0,
+            "memory_used_mib_max": 1169.0,
+            "sample_count": 15
+          },
+          "iterations": 138,
+          "latency_ms": 14.522152898543805,
+          "peak_allocated": 103242752,
+          "peak_reserved": 125829120,
+          "precision": "fp32",
+          "states_per_s": 564103.6874650621,
+          "status": "PASS"
+        },
+        {
+          "batch": 256,
+          "elapsed_s": 2.000778099994932,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 98.0,
+            "gpu_util_mean": 19.615384615384617,
+            "gpu_util_min": 7.0,
+            "memory_used_mib_max": 995.0,
+            "sample_count": 13
+          },
+          "iterations": 654,
+          "latency_ms": 3.0592937308791006,
+          "peak_allocated": 51331584,
+          "peak_reserved": 58720256,
+          "precision": "bf16",
+          "states_per_s": 83679.44451232452,
+          "status": "PASS"
+        },
+        {
+          "batch": 512,
+          "elapsed_s": 2.001616399997147,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 23.0,
+            "gpu_util_mean": 20.153846153846153,
+            "gpu_util_min": 17.0,
+            "memory_used_mib_max": 1158.0,
+            "sample_count": 13
+          },
+          "iterations": 592,
+          "latency_ms": 3.381108783778964,
+          "peak_allocated": 53008896,
+          "peak_reserved": 60817408,
+          "precision": "bf16",
+          "states_per_s": 151429.61458570787,
+          "status": "PASS"
+        },
+        {
+          "batch": 1024,
+          "elapsed_s": 2.0025045000002137,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 29.0,
+            "gpu_util_mean": 23.23076923076923,
+            "gpu_util_min": 8.0,
+            "memory_used_mib_max": 1153.0,
+            "sample_count": 13
+          },
+          "iterations": 682,
+          "latency_ms": 2.9362236070384364,
+          "peak_allocated": 56363520,
+          "peak_reserved": 77594624,
+          "precision": "bf16",
+          "states_per_s": 348747.28121705865,
+          "status": "PASS"
+        },
+        {
+          "batch": 2048,
+          "elapsed_s": 2.001135999998951,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 44.0,
+            "gpu_util_mean": 39.76923076923077,
+            "gpu_util_min": 28.0,
+            "memory_used_mib_max": 1030.0,
+            "sample_count": 13
+          },
+          "iterations": 670,
+          "latency_ms": 2.9867701492521657,
+          "peak_allocated": 63072768,
+          "peak_reserved": 79691776,
+          "precision": "bf16",
+          "states_per_s": 685690.5277805803,
+          "status": "PASS"
+        },
+        {
+          "batch": 4096,
+          "elapsed_s": 2.0008734000002733,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 82.0,
+            "gpu_util_mean": 74.07692307692308,
+            "gpu_util_min": 45.0,
+            "memory_used_mib_max": 1050.0,
+            "sample_count": 13
+          },
+          "iterations": 662,
+          "latency_ms": 3.022467371601621,
+          "peak_allocated": 76491264,
+          "peak_reserved": 100663296,
+          "precision": "bf16",
+          "states_per_s": 1355184.1910635773,
+          "status": "PASS"
+        },
+        {
+          "batch": 8192,
+          "elapsed_s": 2.0031380000000354,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 91.0,
+            "gpu_util_mean": 88.07692307692308,
+            "gpu_util_min": 76.0,
+            "memory_used_mib_max": 1049.0,
+            "sample_count": 13
+          },
+          "iterations": 369,
+          "latency_ms": 5.428558265582752,
+          "peak_allocated": 103328256,
+          "peak_reserved": 148897792,
+          "precision": "bf16",
+          "states_per_s": 1509056.2906798965,
+          "status": "PASS"
+        }
+      ],
+      "parameter_count": 5264710,
+      "selected_inference": {
+        "batch": 8192,
+        "elapsed_s": 2.0031380000000354,
+        "execution": "eager",
+        "gpu": {
+          "available": true,
+          "gpu_util_max": 91.0,
+          "gpu_util_mean": 88.07692307692308,
+          "gpu_util_min": 76.0,
+          "memory_used_mib_max": 1049.0,
+          "sample_count": 13
+        },
+        "iterations": 369,
+        "latency_ms": 5.428558265582752,
+        "peak_allocated": 103328256,
+        "peak_reserved": 148897792,
+        "precision": "bf16",
+        "states_per_s": 1509056.2906798965,
+        "status": "PASS"
+      },
+      "training_eager": [
+        {
+          "batch": 256,
+          "board_forwards_per_s": 28885.39115945163,
+          "elapsed_s": 2.002950200003397,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 42.0,
+            "gpu_util_mean": 39.86666666666667,
+            "gpu_util_min": 36.0,
+            "memory_used_mib_max": 1226.0,
+            "sample_count": 15
+          },
+          "iterations": 113,
+          "peak_allocated": 124762112,
+          "peak_reserved": 167772160,
+          "precision": "fp32",
+          "samples_per_s": 14442.695579725814,
+          "status": "PASS",
+          "step_ms": 17.72522300887962
+        },
+        {
+          "batch": 512,
+          "board_forwards_per_s": 60901.37906846644,
+          "elapsed_s": 2.0176882999949157,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 78.0,
+            "gpu_util_mean": 52.8,
+            "gpu_util_min": 39.0,
+            "memory_used_mib_max": 1171.0,
+            "sample_count": 15
+          },
+          "iterations": 120,
+          "peak_allocated": 160293888,
+          "peak_reserved": 174063616,
+          "precision": "fp32",
+          "samples_per_s": 30450.68953423322,
+          "status": "PASS",
+          "step_ms": 16.8140691666243
+        },
+        {
+          "batch": 1024,
+          "board_forwards_per_s": 124913.13493102866,
+          "elapsed_s": 2.016633399995044,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 80.0,
+            "gpu_util_mean": 64.2,
+            "gpu_util_min": 53.0,
+            "memory_used_mib_max": 1306.0,
+            "sample_count": 15
+          },
+          "iterations": 123,
+          "peak_allocated": 240680448,
+          "peak_reserved": 255852544,
+          "precision": "fp32",
+          "samples_per_s": 62456.56746551433,
+          "status": "PASS",
+          "step_ms": 16.395393495894666
+        },
+        {
+          "batch": 2048,
+          "board_forwards_per_s": 184250.38007292466,
+          "elapsed_s": 2.2230618999965372,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 92.0,
+            "gpu_util_mean": 86.6470588235294,
+            "gpu_util_min": 68.0,
+            "memory_used_mib_max": 1479.0,
+            "sample_count": 17
+          },
+          "iterations": 100,
+          "peak_allocated": 390505472,
+          "peak_reserved": 402653184,
+          "precision": "fp32",
+          "samples_per_s": 92125.19003646233,
+          "status": "PASS",
+          "step_ms": 22.230618999965372
+        },
+        {
+          "batch": 4096,
+          "board_forwards_per_s": 206243.6695945389,
+          "elapsed_s": 3.972000699999626,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 96.0,
+            "gpu_util_mean": 95.23333333333333,
+            "gpu_util_min": 94.0,
+            "memory_used_mib_max": 1725.0,
+            "sample_count": 30
+          },
+          "iterations": 100,
+          "peak_allocated": 692651008,
+          "peak_reserved": 708837376,
+          "precision": "fp32",
+          "samples_per_s": 103121.83479726945,
+          "status": "PASS",
+          "step_ms": 39.72000699999626
+        },
+        {
+          "batch": 8192,
+          "board_forwards_per_s": 209315.81871976293,
+          "elapsed_s": 7.827406500000507,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 98.0,
+            "gpu_util_mean": 96.73333333333333,
+            "gpu_util_min": 83.0,
+            "memory_used_mib_max": 2310.0,
+            "sample_count": 60
+          },
+          "iterations": 100,
+          "peak_allocated": 1274463232,
+          "peak_reserved": 1323302912,
+          "precision": "fp32",
+          "samples_per_s": 104657.90935988147,
+          "status": "PASS",
+          "step_ms": 78.27406500000507
+        },
+        {
+          "batch": 256,
+          "board_forwards_per_s": 22301.590329862705,
+          "elapsed_s": 2.2958004000029177,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 21.0,
+            "gpu_util_mean": 17.41176470588235,
+            "gpu_util_min": 14.0,
+            "memory_used_mib_max": 1263.0,
+            "sample_count": 17
+          },
+          "iterations": 100,
+          "peak_allocated": 124719616,
+          "peak_reserved": 169869312,
+          "precision": "bf16",
+          "samples_per_s": 11150.795164931353,
+          "status": "PASS",
+          "step_ms": 22.958004000029177
+        },
+        {
+          "batch": 512,
+          "board_forwards_per_s": 50977.70407471091,
+          "elapsed_s": 2.008721300000616,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 23.0,
+            "gpu_util_mean": 19.4375,
+            "gpu_util_min": 15.0,
+            "memory_used_mib_max": 1267.0,
+            "sample_count": 16
+          },
+          "iterations": 100,
+          "peak_allocated": 140889600,
+          "peak_reserved": 197132288,
+          "precision": "bf16",
+          "samples_per_s": 25488.852037355457,
+          "status": "PASS",
+          "step_ms": 20.08721300000616
+        },
+        {
+          "batch": 1024,
+          "board_forwards_per_s": 101666.50665415704,
+          "elapsed_s": 2.0144294000056107,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 28.0,
+            "gpu_util_mean": 26.3125,
+            "gpu_util_min": 23.0,
+            "memory_used_mib_max": 1166.0,
+            "sample_count": 16
+          },
+          "iterations": 100,
+          "peak_allocated": 193442304,
+          "peak_reserved": 222298112,
+          "precision": "bf16",
+          "samples_per_s": 50833.25332707852,
+          "status": "PASS",
+          "step_ms": 20.144294000056107
+        },
+        {
+          "batch": 2048,
+          "board_forwards_per_s": 203865.70386629528,
+          "elapsed_s": 2.009165799994662,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 50.0,
+            "gpu_util_mean": 42.13333333333333,
+            "gpu_util_min": 37.0,
+            "memory_used_mib_max": 1264.0,
+            "sample_count": 15
+          },
+          "iterations": 100,
+          "peak_allocated": 291408384,
+          "peak_reserved": 325058560,
+          "precision": "bf16",
+          "samples_per_s": 101932.85193314764,
+          "status": "PASS",
+          "step_ms": 20.09165799994662
+        },
+        {
+          "batch": 4096,
+          "board_forwards_per_s": 416201.05067403184,
+          "elapsed_s": 2.0076450999986264,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 79.0,
+            "gpu_util_mean": 69.8,
+            "gpu_util_min": 65.0,
+            "memory_used_mib_max": 1476.0,
+            "sample_count": 15
+          },
+          "iterations": 102,
+          "peak_allocated": 485046784,
+          "peak_reserved": 547356672,
+          "precision": "bf16",
+          "samples_per_s": 208100.52533701592,
+          "status": "PASS",
+          "step_ms": 19.68279509802575
+        },
+        {
+          "batch": 8192,
+          "board_forwards_per_s": 464581.5676529519,
+          "elapsed_s": 3.5266142999971635,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 95.0,
+            "gpu_util_mean": 91.76923076923077,
+            "gpu_util_min": 78.0,
+            "memory_used_mib_max": 1975.0,
+            "sample_count": 26
+          },
+          "iterations": 100,
+          "peak_allocated": 870191616,
+          "peak_reserved": 933232640,
+          "precision": "bf16",
+          "samples_per_s": 232290.78382647596,
+          "status": "PASS",
+          "step_ms": 35.266142999971635
+        }
+      ]
+    },
+    "Transformer2048": {
+      "best_inference_eager": {
+        "batch": 1024,
+        "elapsed_s": 2.01070620000246,
+        "execution": "eager",
+        "gpu": {
+          "available": true,
+          "gpu_util_max": 95.0,
+          "gpu_util_mean": 88.86666666666666,
+          "gpu_util_min": 74.0,
+          "memory_used_mib_max": 1164.0,
+          "sample_count": 15
+        },
+        "iterations": 126,
+        "latency_ms": 15.957985714305238,
+        "peak_allocated": 180396032,
+        "peak_reserved": 226492416,
+        "precision": "bf16",
+        "states_per_s": 64168.499604687226,
+        "status": "PASS"
+      },
+      "best_training_eager": {
+        "batch": 512,
+        "board_forwards_per_s": 21279.340553227445,
+        "elapsed_s": 4.812179200001992,
+        "execution": "eager",
+        "gpu": {
+          "available": true,
+          "gpu_util_max": 94.0,
+          "gpu_util_mean": 87.13513513513513,
+          "gpu_util_min": 50.0,
+          "memory_used_mib_max": 2112.0,
+          "sample_count": 37
+        },
+        "iterations": 100,
+        "peak_allocated": 1097514496,
+        "peak_reserved": 1197473792,
+        "precision": "bf16",
+        "samples_per_s": 10639.670276613722,
+        "status": "PASS",
+        "step_ms": 48.12179200001992
+      },
+      "compile_comparisons": [
+        {
+          "batch": 1024,
+          "inference": {
+            "batch": 1024,
+            "error": "TritonMissing('Cannot find a working triton installation. Either the package is not installed or it is too old. More information on installing Triton can be found at: https://github.com/triton-lang/triton\\n\\nSet TORCHDYNAMO_VERBOSE=1 for the internal stack trace (please do this especially if you\\'re reporting a bug to PyTorch). For even more developer context, set TORCH_LOGS=\"+dynamo\"\\n')",
+            "execution": "compile",
+            "precision": "bf16",
+            "status": "FAILED",
+            "traceback": "Traceback (most recent call last):\n  File \"D:\\CodexTasks\\NN-2048-ai\\benchmarks\\benchmark_m2_gpu.py\", line 62, in inference_point\n    iterations, elapsed = timed_cuda_loop(torch, body)\n                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\CodexTasks\\NN-2048-ai\\benchmarks\\_m2_utils.py\", line 85, in timed_cuda_loop\n    body()\n  File \"D:\\CodexTasks\\NN-2048-ai\\benchmarks\\benchmark_m2_gpu.py\", line 57, in body\n    out = model(boards)\n          ^^^^^^^^^^^^^\n  File \"D:\\sd-webui-forge-aki-v1.0\\python\\Lib\\site-packages\\torch\\_dynamo\\eval_frame.py\", line 414, in __call__\n    return super().__call__(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\sd-webui-forge-aki-v1.0\\python\\Lib\\site-packages\\torch\\nn\\modules\\module.py\", line 1775, in _wrapped_call_impl\n    return self._call_impl(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\sd-webui-forge-aki-v1.0\\python\\Lib\\site-packages\\torch\\nn\\modules\\module.py\", line 1786, in _call_impl\n    return forward_call(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\sd-webui-forge-aki-v1.0\\python\\Lib\\site-packages\\torch\\_dynamo\\eval_frame.py\", line 845, in compile_wrapper\n    raise e.remove_dynamo_frames() from None  # see TORCHDYNAMO_VERBOSE=1\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\sd-webui-forge-aki-v1.0\\python\\Lib\\site-packages\\torch\\_inductor\\scheduler.py\", line 4590, in create_backend\n    raise TritonMissing(inspect.currentframe())\ntorch._inductor.exc.TritonMissing: Cannot find a working triton installation. Either the package is not installed or it is too old. More information on installing Triton can be found at: https://github.com/triton-lang/triton\n\nSet TORCHDYNAMO_VERBOSE=1 for the internal stack trace (please do this especially if you're reporting a bug to PyTorch). For even more developer context, set TORCH_LOGS=\"+dynamo\"\n\n"
+          },
+          "precision": "bf16",
+          "training": {
+            "batch": 1024,
+            "board_forwards_per_s": 20390.0590417721,
+            "elapsed_s": 10.044110199996794,
+            "execution": "compile",
+            "gpu": {
+              "available": true,
+              "gpu_util_max": 97.0,
+              "gpu_util_mean": 94.44736842105263,
+              "gpu_util_min": 10.0,
+              "memory_used_mib_max": 3334.0,
+              "sample_count": 76
+            },
+            "iterations": 100,
+            "peak_allocated": 2109303296,
+            "peak_reserved": 2357198848,
+            "precision": "bf16",
+            "samples_per_s": 10195.02952088605,
+            "status": "PASS",
+            "step_ms": 100.44110199996794
+          }
+        }
+      ],
+      "inference_eager": [
+        {
+          "batch": 256,
+          "elapsed_s": 2.0060942999989493,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 90.0,
+            "gpu_util_mean": 68.33333333333333,
+            "gpu_util_min": 5.0,
+            "memory_used_mib_max": 2933.0,
+            "sample_count": 15
+          },
+          "iterations": 234,
+          "latency_ms": 8.573052564098074,
+          "peak_allocated": 66356736,
+          "peak_reserved": 96468992,
+          "precision": "fp32",
+          "states_per_s": 29861.00902636101,
+          "status": "PASS"
+        },
+        {
+          "batch": 512,
+          "elapsed_s": 2.0087779000023147,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 95.0,
+            "gpu_util_mean": 94.53333333333333,
+            "gpu_util_min": 94.0,
+            "memory_used_mib_max": 2961.0,
+            "sample_count": 15
+          },
+          "iterations": 127,
+          "latency_ms": 15.817148818915864,
+          "peak_allocated": 112662016,
+          "peak_reserved": 178257920,
+          "precision": "fp32",
+          "states_per_s": 32369.929995707873,
+          "status": "PASS"
+        },
+        {
+          "batch": 1024,
+          "elapsed_s": 3.2188010000027134,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 98.0,
+            "gpu_util_mean": 97.88,
+            "gpu_util_min": 97.0,
+            "memory_used_mib_max": 3089.0,
+            "sample_count": 25
+          },
+          "iterations": 100,
+          "latency_ms": 32.188010000027134,
+          "peak_allocated": 188233216,
+          "peak_reserved": 316669952,
+          "precision": "fp32",
+          "states_per_s": 31813.088165411184,
+          "status": "PASS"
+        },
+        {
+          "batch": 2048,
+          "elapsed_s": 7.786134100002528,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 99.0,
+            "gpu_util_mean": 98.72413793103448,
+            "gpu_util_min": 98.0,
+            "memory_used_mib_max": 3449.0,
+            "sample_count": 58
+          },
+          "iterations": 100,
+          "latency_ms": 77.86134100002528,
+          "peak_allocated": 339375616,
+          "peak_reserved": 566231040,
+          "precision": "fp32",
+          "states_per_s": 26303.16886013221,
+          "status": "PASS"
+        },
+        {
+          "batch": 4096,
+          "elapsed_s": 14.562444200004393,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 100.0,
+            "gpu_util_mean": 99.17557251908397,
+            "gpu_util_min": 84.0,
+            "memory_used_mib_max": 2271.0,
+            "sample_count": 131
+          },
+          "iterations": 100,
+          "latency_ms": 145.62444200004393,
+          "peak_allocated": 641660416,
+          "peak_reserved": 1071644672,
+          "precision": "fp32",
+          "states_per_s": 28127.146403065803,
+          "status": "PASS"
+        },
+        {
+          "batch": 8192,
+          "elapsed_s": 27.39357580000069,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 100.0,
+            "gpu_util_mean": 99.17910447761194,
+            "gpu_util_min": 1.0,
+            "memory_used_mib_max": 3255.0,
+            "sample_count": 201
+          },
+          "iterations": 100,
+          "latency_ms": 273.9357580000069,
+          "peak_allocated": 1246230016,
+          "peak_reserved": 2078277632,
+          "precision": "fp32",
+          "states_per_s": 29904.821699107255,
+          "status": "PASS"
+        },
+        {
+          "batch": 256,
+          "elapsed_s": 2.0025267000019085,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 80.0,
+            "gpu_util_mean": 58.666666666666664,
+            "gpu_util_min": 1.0,
+            "memory_used_mib_max": 985.0,
+            "sample_count": 15
+          },
+          "iterations": 390,
+          "latency_ms": 5.134683846158739,
+          "peak_allocated": 79622144,
+          "peak_reserved": 94371840,
+          "precision": "bf16",
+          "states_per_s": 49857.01314239897,
+          "status": "PASS"
+        },
+        {
+          "batch": 512,
+          "elapsed_s": 2.0081314999988535,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 91.0,
+            "gpu_util_mean": 85.71428571428571,
+            "gpu_util_min": 60.0,
+            "memory_used_mib_max": 1116.0,
+            "sample_count": 14
+          },
+          "iterations": 249,
+          "latency_ms": 8.064785140557644,
+          "peak_allocated": 113213440,
+          "peak_reserved": 140509184,
+          "precision": "bf16",
+          "states_per_s": 63485.88227418014,
+          "status": "PASS"
+        },
+        {
+          "batch": 1024,
+          "elapsed_s": 2.01070620000246,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 95.0,
+            "gpu_util_mean": 88.86666666666666,
+            "gpu_util_min": 74.0,
+            "memory_used_mib_max": 1164.0,
+            "sample_count": 15
+          },
+          "iterations": 126,
+          "latency_ms": 15.957985714305238,
+          "peak_allocated": 180396032,
+          "peak_reserved": 226492416,
+          "precision": "bf16",
+          "states_per_s": 64168.499604687226,
+          "status": "PASS"
+        },
+        {
+          "batch": 2048,
+          "elapsed_s": 3.730340599999181,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 98.0,
+            "gpu_util_mean": 96.25925925925925,
+            "gpu_util_min": 85.0,
+            "memory_used_mib_max": 1393.0,
+            "sample_count": 27
+          },
+          "iterations": 100,
+          "latency_ms": 37.30340599999181,
+          "peak_allocated": 314761216,
+          "peak_reserved": 392167424,
+          "precision": "bf16",
+          "states_per_s": 54901.15299392366,
+          "status": "PASS"
+        },
+        {
+          "batch": 4096,
+          "elapsed_s": 7.018656000000192,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 99.0,
+            "gpu_util_mean": 98.83018867924528,
+            "gpu_util_min": 98.0,
+            "memory_used_mib_max": 1620.0,
+            "sample_count": 53
+          },
+          "iterations": 100,
+          "latency_ms": 70.18656000000192,
+          "peak_allocated": 583491584,
+          "peak_reserved": 710934528,
+          "precision": "bf16",
+          "states_per_s": 58358.75130509157,
+          "status": "PASS"
+        },
+        {
+          "batch": 8192,
+          "elapsed_s": 13.770911700004945,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 100.0,
+            "gpu_util_mean": 97.40196078431373,
+            "gpu_util_min": 40.0,
+            "memory_used_mib_max": 2327.0,
+            "sample_count": 102
+          },
+          "iterations": 100,
+          "latency_ms": 137.70911700004945,
+          "peak_allocated": 1120952320,
+          "peak_reserved": 1348468736,
+          "precision": "bf16",
+          "states_per_s": 59487.70988050892,
+          "status": "PASS"
+        }
+      ],
+      "parameter_count": 4750342,
+      "selected_inference": {
+        "batch": 1024,
+        "elapsed_s": 2.01070620000246,
+        "execution": "eager",
+        "gpu": {
+          "available": true,
+          "gpu_util_max": 95.0,
+          "gpu_util_mean": 88.86666666666666,
+          "gpu_util_min": 74.0,
+          "memory_used_mib_max": 1164.0,
+          "sample_count": 15
+        },
+        "iterations": 126,
+        "latency_ms": 15.957985714305238,
+        "peak_allocated": 180396032,
+        "peak_reserved": 226492416,
+        "precision": "bf16",
+        "states_per_s": 64168.499604687226,
+        "status": "PASS"
+      },
+      "training_eager": [
+        {
+          "batch": 256,
+          "board_forwards_per_s": 9225.78658524877,
+          "elapsed_s": 5.549662299999909,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 95.0,
+            "gpu_util_mean": 85.46511627906976,
+            "gpu_util_min": 1.0,
+            "memory_used_mib_max": 3818.0,
+            "sample_count": 43
+          },
+          "iterations": 100,
+          "peak_allocated": 965699072,
+          "peak_reserved": 1069547520,
+          "precision": "fp32",
+          "samples_per_s": 4612.893292624385,
+          "status": "PASS",
+          "step_ms": 55.49662299999909
+        },
+        {
+          "batch": 512,
+          "board_forwards_per_s": 9194.347954176941,
+          "elapsed_s": 11.137276999994356,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 99.0,
+            "gpu_util_mean": 97.52325581395348,
+            "gpu_util_min": 94.0,
+            "memory_used_mib_max": 4745.0,
+            "sample_count": 86
+          },
+          "iterations": 100,
+          "peak_allocated": 1855246848,
+          "peak_reserved": 2048917504,
+          "precision": "fp32",
+          "samples_per_s": 4597.173977088471,
+          "status": "PASS",
+          "step_ms": 111.37276999994356
+        },
+        {
+          "batch": 1024,
+          "board_forwards_per_s": 8766.541003210083,
+          "elapsed_s": 23.361551599999075,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 100.0,
+            "gpu_util_mean": 98.26404494382022,
+            "gpu_util_min": 84.0,
+            "memory_used_mib_max": 6479.0,
+            "sample_count": 178
+          },
+          "iterations": 100,
+          "peak_allocated": 3621235200,
+          "peak_reserved": 3823108096,
+          "precision": "fp32",
+          "samples_per_s": 4383.270501605041,
+          "status": "PASS",
+          "step_ms": 233.61551599999075
+        },
+        {
+          "batch": 2048,
+          "board_forwards_per_s": 2183.0583252345637,
+          "elapsed_s": 187.62668649999978,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 100.0,
+            "gpu_util_mean": 96.87571080422421,
+            "gpu_util_min": 0.0,
+            "memory_used_mib_max": 7841.0,
+            "sample_count": 1231
+          },
+          "iterations": 100,
+          "peak_allocated": 7145871872,
+          "peak_reserved": 7491026944,
+          "precision": "fp32",
+          "samples_per_s": 1091.5291626172818,
+          "status": "PASS",
+          "step_ms": 1876.2668649999978
+        },
+        {
+          "batch": 4096,
+          "board_forwards_per_s": 188.69959176991068,
+          "elapsed_s": 4341.2918508,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 100.0,
+            "gpu_util_mean": 99.55614436325097,
+            "gpu_util_min": 4.0,
+            "memory_used_mib_max": 7826.0,
+            "sample_count": 17927
+          },
+          "iterations": 100,
+          "peak_allocated": 14195145216,
+          "peak_reserved": 14839447552,
+          "precision": "fp32",
+          "samples_per_s": 94.34979588495534,
+          "status": "PASS",
+          "step_ms": 43412.918508
+        },
+        {
+          "batch": 8192,
+          "error": "CUDA out of memory. Tried to allocate 512.00 MiB. GPU 0 has a total capacity of 7.96 GiB of which 0 bytes is free. Of the allocated memory 14.00 GiB is allocated by PyTorch, and 79.97 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)",
+          "execution": "eager",
+          "precision": "fp32",
+          "status": "OOM"
+        },
+        {
+          "batch": 256,
+          "board_forwards_per_s": 13545.34263764206,
+          "elapsed_s": 3.7798970000003465,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 77.0,
+            "gpu_util_mean": 61.827586206896555,
+            "gpu_util_min": 50.0,
+            "memory_used_mib_max": 1530.0,
+            "sample_count": 29
+          },
+          "iterations": 100,
+          "peak_allocated": 591620096,
+          "peak_reserved": 683671552,
+          "precision": "bf16",
+          "samples_per_s": 6772.67131882103,
+          "status": "PASS",
+          "step_ms": 37.798970000003465
+        },
+        {
+          "batch": 512,
+          "board_forwards_per_s": 21279.340553227445,
+          "elapsed_s": 4.812179200001992,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 94.0,
+            "gpu_util_mean": 87.13513513513513,
+            "gpu_util_min": 50.0,
+            "memory_used_mib_max": 2112.0,
+            "sample_count": 37
+          },
+          "iterations": 100,
+          "peak_allocated": 1097514496,
+          "peak_reserved": 1197473792,
+          "precision": "bf16",
+          "samples_per_s": 10639.670276613722,
+          "status": "PASS",
+          "step_ms": 48.12179200001992
+        },
+        {
+          "batch": 1024,
+          "board_forwards_per_s": 19344.787147543582,
+          "elapsed_s": 10.586831400003575,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 98.0,
+            "gpu_util_mean": 95.9090909090909,
+            "gpu_util_min": 85.0,
+            "memory_used_mib_max": 3322.0,
+            "sample_count": 77
+          },
+          "iterations": 100,
+          "peak_allocated": 2109303296,
+          "peak_reserved": 2357198848,
+          "precision": "bf16",
+          "samples_per_s": 9672.393573771791,
+          "status": "PASS",
+          "step_ms": 105.86831400003575
+        },
+        {
+          "batch": 2048,
+          "board_forwards_per_s": 19571.02772713295,
+          "elapsed_s": 20.9288957999961,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 99.0,
+            "gpu_util_mean": 97.42948717948718,
+            "gpu_util_min": 47.0,
+            "memory_used_mib_max": 5225.0,
+            "sample_count": 156
+          },
+          "iterations": 100,
+          "peak_allocated": 4132880896,
+          "peak_reserved": 4393533440,
+          "precision": "bf16",
+          "samples_per_s": 9785.513863566475,
+          "status": "PASS",
+          "step_ms": 209.28895799996099
+        },
+        {
+          "batch": 4096,
+          "board_forwards_per_s": 4157.887460539084,
+          "elapsed_s": 197.02312959999836,
+          "execution": "eager",
+          "gpu": {
+            "available": true,
+            "gpu_util_max": 100.0,
+            "gpu_util_mean": 99.73407977606718,
+            "gpu_util_min": 96.0,
+            "memory_used_mib_max": 7738.0,
+            "sample_count": 1429
+          },
+          "iterations": 100,
+          "peak_allocated": 8180036096,
+          "peak_reserved": 8636071936,
+          "precision": "bf16",
+          "samples_per_s": 2078.943730269542,
+          "status": "PASS",
+          "step_ms": 1970.2312959999836
+        },
+        {
+          "batch": 8192,
+          "error": "CUDA out of memory. Tried to allocate 256.00 MiB. GPU 0 has a total capacity of 7.96 GiB of which 0 bytes is free. Of the allocated memory 14.05 GiB is allocated by PyTorch, and 41.02 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)",
+          "execution": "eager",
+          "precision": "bf16",
+          "status": "OOM"
+        }
+      ]
+    }
+  },
+  "pass": true
+}

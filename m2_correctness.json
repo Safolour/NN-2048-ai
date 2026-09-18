@@ -1,0 +1,45 @@
+{
+  "cuda_runtime": "13.0",
+  "gpu": "NVIDIA GeForce RTX 5060 Laptop GPU",
+  "models": [
+    {
+      "a_loss_after": 0.11395300924777985,
+      "a_loss_before": 1.0599825382232666,
+      "final_total_loss": 0.5175120234489441,
+      "finite": true,
+      "forward_backward_ok": true,
+      "initial_total_loss": 2.7403340339660645,
+      "model": "Transformer2048",
+      "parameter_count": 4750342,
+      "pass": true,
+      "peak_vram_allocated": 520928256,
+      "peak_vram_reserved": 580911104,
+      "q_loss_after": 0.366423636674881,
+      "q_loss_before": 1.4364943504333496,
+      "steps": 40,
+      "v_loss_after": 0.18822377920150757,
+      "v_loss_before": 1.5476969480514526
+    },
+    {
+      "a_loss_after": 0.1265566647052765,
+      "a_loss_before": 0.8627068400382996,
+      "final_total_loss": 0.5500190854072571,
+      "finite": true,
+      "forward_backward_ok": true,
+      "initial_total_loss": 2.8542087078094482,
+      "model": "ResidualMLP2048",
+      "parameter_count": 5264710,
+      "pass": true,
+      "peak_vram_allocated": 125236736,
+      "peak_vram_reserved": 580911104,
+      "q_loss_after": 0.4033161997795105,
+      "q_loss_before": 1.935706615447998,
+      "steps": 37,
+      "v_loss_after": 0.16684910655021667,
+      "v_loss_before": 0.9742977023124695
+    }
+  ],
+  "pass": true,
+  "synthetic_targets_have_chess_strength_semantics": false,
+  "torch": "2.9.1+cu130"
+}

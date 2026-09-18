@@ -1,12 +1,7 @@
 name: CI
 
-# Mandatory CPU regression gate from M2 Preflight onwards (master plan, section
-# "持续集成 / GitHub Actions").  It runs the complete CPU-testable pytest suite,
-# which permanently includes the frozen M0 and M1 regression tests.
-#
-# Deliberately minimal first version: one job, one runner, one Python version.
-# This workflow is not a GPU performance gate -- GPU milestone acceptance keeps
-# running on the local RTX 5060, never on a hosted CPU runner.
+# Mandatory CPU regression gate from M2 Preflight onwards. It always runs the
+# complete CPU-testable suite, including frozen M0/M1 regressions.
 on:
   push:
   pull_request:
@@ -25,21 +20,19 @@ jobs:
         with:
           python-version: "3.12"
 
-      # The repository has no packaging / dependency manifest: the suite is run
-      # through the root ``conftest.py``, which puts ``src/`` on ``sys.path``.
-      # So CI installs only what the CPU test suite actually needs.
       - name: Install CPU test dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install numpy pytest
+          python -m pip install torch==2.9.1 --index-url https://download.pytorch.org/whl/cpu
 
       - name: Show environment
         run: |
           python --version
           python -c "import numpy; print('numpy', numpy.__version__)"
           python -c "import pytest; print('pytest', pytest.__version__)"
+          python -c "import torch; print('torch', torch.__version__); print('cuda', torch.version.cuda); print('cuda_available', torch.cuda.is_available())"
 
-      # The complete suite.  Never narrowed to a single milestone: M0 and M1
-      # frozen regression must run here on every push and pull request.
       - name: Run full pytest suite
         run: python -m pytest
+
