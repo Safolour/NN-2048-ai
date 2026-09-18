@@ -45,5 +45,13 @@ jobs:
             -Dpybind11_DIR="$(python -m pybind11 --cmakedir)"
           cmake --build build/m2_fast_backend --config Release
 
+      - name: Build M3 C++ tuple backend
+        run: |
+          cmake -S cpp/m3_tuple_backend -B build/m3_tuple_backend \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPython_EXECUTABLE="$(which python)" \
+            -Dpybind11_DIR="$(python -m pybind11 --cmakedir)"
+          cmake --build build/m3_tuple_backend --config Release
+
       - name: Run full pytest suite
         run: python -m pytest

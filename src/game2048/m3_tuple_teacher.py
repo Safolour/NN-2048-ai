@@ -157,8 +157,19 @@ def feature_indices_batch(boards: np.ndarray) -> np.ndarray:
 class TupleTeacher:
     """Deterministic read-only mmap evaluator for one frozen checkpoint."""
 
-    def __init__(self, path: Path | str = DEFAULT_CHECKPOINT, *, verify_sha256: bool = True) -> None:
+    def __init__(
+        self,
+        path: Path | str = DEFAULT_CHECKPOINT,
+        *,
+        verify_sha256: bool = True,
+        backend: str = "python",
+        cpp_prefetch: bool = True,
+    ) -> None:
         self.path = Path(path).resolve()
+        self.backend = str(backend).lower()
+        if self.backend not in {"python", "cpp"}:
+            raise ValueError("backend must be 'python' or 'cpp'")
+        self.cpp_prefetch = bool(cpp_prefetch)
         with self.path.open("rb") as handle:
             header = handle.read(HEADER_BYTES)
         self.metadata = parse_checkpoint_header(header)
@@ -177,6 +188,9 @@ class TupleTeacher:
         self._feature_bases = np.repeat(
             np.arange(PATTERN_COUNT, dtype=np.uint32) * FEATURE_COUNT_PER_PATTERN,
             SYMMETRY_COUNT,
+        )
+        self._stage_thresholds_array = np.ascontiguousarray(
+            np.asarray(self.metadata.stage_thresholds, dtype=np.uint64)
         )
 
     @property
@@ -200,6 +214,14 @@ class TupleTeacher:
         arr = np.asarray(boards)
         if arr.ndim != 2 or arr.shape[1] != 16 or arr.dtype != np.uint8:
             raise ValueError("boards must be uint8 with shape (N, 16)")
+        if self.backend == "cpp":
+            from .m3_tuple_backend import afterstate_values as cpp_afterstate_values
+            return cpp_afterstate_values(
+                np.ascontiguousarray(arr),
+                self._weights,
+                self._stage_thresholds_array,
+                prefetch=self.cpp_prefetch,
+            )
         features = feature_indices_batch(arr)
         absolute = self._feature_bases.reshape(1, 64) + features
         stages = np.fromiter((self.stage_for(board) for board in arr), dtype=np.intp, count=len(arr))
@@ -221,10 +243,14 @@ class TupleTeacher:
         boards = np.asarray(states)
         if boards.ndim != 2 or boards.shape[1] != 16 or boards.dtype != np.uint8:
             raise ValueError("states must be uint8 with shape (N, 16)")
-        from .fast_env import move_batch
         repeated = np.repeat(np.ascontiguousarray(boards), 4, axis=0)
         actions = np.tile(np.arange(4, dtype=np.uint8), len(boards))
-        moved = move_batch(repeated, actions)
+        if self.backend == "cpp":
+            from .m2_fast_backend import move_selected_batch
+            moved = move_selected_batch(repeated, actions)
+        else:
+            from .fast_env import move_batch
+            moved = move_batch(repeated, actions)
         flat = np.full(len(repeated), np.nan, dtype=np.float64)
         legal = np.asarray(moved.moved, dtype=bool)
         if legal.any():
