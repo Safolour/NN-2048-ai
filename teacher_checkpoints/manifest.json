@@ -1,0 +1,17 @@
+{
+  "m3_teacher_baseline": {
+    "relative_path": "m3/ordinary_td_comparator_ep4800000_7192719323a0.bin",
+    "sha256": "7192719323a073ba2b6b19b62cb7d46ef4aa90ecc8c4ae6baf27ad0c51566a84",
+    "episode": 4800000,
+    "format": "U2048NT6",
+    "format_version": 2,
+    "feature_schema": "4bit_exponent_6tuple",
+    "algorithm": "afterstate_td0",
+    "role": "M3 frozen teacher baseline",
+    "source_snapshot": "D:\\CodexTasks\\2048-ai\\oneclick-m6-report\\snapshots\\COMPARATOR\\ep4800000_7192719323a0.bin",
+    "source_run": "D:\\CodexTasks\\2048-ai\\runs\\20260916T182634Z_m6-ordinary-td-comparator-seed1",
+    "source_project_git_commit": "172e7d1a1d501282899b8a5a2e251c174c43f98f",
+    "source_run_git_dirty": true,
+    "resolved_config_sha256": "6f4f6781eceeda496a3e600f754708ac644fc68be0057d4fe4bcb847ea0cc61f"
+  }
+}

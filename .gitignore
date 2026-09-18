@@ -29,3 +29,6 @@ Thumbs.db
 desktop.ini
 .idea/
 .vscode/
+
+# Local external Teacher checkpoints
+teacher_checkpoints/**/*.bin

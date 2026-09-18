@@ -1,0 +1,263 @@
+{
+  "result": "PASS",
+  "checkpoint": {
+    "path": "D:\\CodexTasks\\NN-2048-ai\\teacher_checkpoints\\m3\\ordinary_td_comparator_ep4800000_7192719323a0.bin",
+    "sha256": "7192719323a073ba2b6b19b62cb7d46ef4aa90ecc8c4ae6baf27ad0c51566a84",
+    "expected_sha256": "7192719323a073ba2b6b19b62cb7d46ef4aa90ecc8c4ae6baf27ad0c51566a84",
+    "size_bytes": 536871168,
+    "metadata": {
+      "format_version": 2,
+      "stage_count": 1,
+      "stage_thresholds": [
+        0
+      ],
+      "stage_policy_version": 1,
+      "rule": 0,
+      "phase": 0,
+      "alpha_normalizer": 64,
+      "global_episodes_completed": 4800000,
+      "otd_episodes_completed": 4800000,
+      "tc_episodes_completed": 0,
+      "otd_episode_budget": 10000000,
+      "tc_episode_budget": 0,
+      "training_seed": 1,
+      "weight_checksum_fnv1a64": 17760821859109475687,
+      "coherence_checksum_fnv1a64": 0,
+      "has_coherence_stats": false,
+      "patterns": [
+        [
+          0,
+          1,
+          2,
+          4,
+          5,
+          6
+        ],
+        [
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        [
+          2,
+          3,
+          4,
+          5,
+          6,
+          9
+        ],
+        [
+          0,
+          1,
+          2,
+          5,
+          9,
+          10
+        ],
+        [
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        [
+          1,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        [
+          0,
+          1,
+          4,
+          8,
+          9,
+          10
+        ]
+      ]
+    }
+  },
+  "semantics": {
+    "raw_tuple": "RAW_TUPLE_HEURISTIC",
+    "formal_state_leaf": "FORMAL_STATE_TUPLE_HEURISTIC",
+    "search_value": "SEARCH_VALUE_RAW_LEAF",
+    "leaf_evaluator": "tuple_afterstate_greedy_1ply_adapter"
+  },
+  "differential": {
+    "cases": [
+      {
+        "board_exponents": [
+          1,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "local": [
+          229327.65625,
+          229327.65625,
+          null,
+          229402.578125
+        ],
+        "upstream": [
+          229327.65625,
+          229327.65625,
+          null,
+          229402.578125
+        ],
+        "deterministic": true,
+        "matches_upstream": true
+      },
+      {
+        "board_exponents": [
+          1,
+          2,
+          3,
+          4,
+          4,
+          3,
+          2,
+          1,
+          0,
+          1,
+          2,
+          3,
+          0,
+          0,
+          1,
+          1
+        ],
+        "local": [
+          215259.515625,
+          214026.484375,
+          216664.796875,
+          219135.0625
+        ],
+        "upstream": [
+          215259.515625,
+          214026.484375,
+          216664.796875,
+          219135.0625
+        ],
+        "deterministic": true,
+        "matches_upstream": true
+      },
+      {
+        "board_exponents": [
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "local": [
+          null,
+          80568.640625,
+          null,
+          172197.453125
+        ],
+        "upstream": [
+          null,
+          80568.640625,
+          null,
+          172197.453125
+        ],
+        "deterministic": true,
+        "matches_upstream": true
+      },
+      {
+        "board_exponents": [
+          16,
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          0
+        ],
+        "local": [
+          null,
+          -9368.2998046875,
+          null,
+          -4477.31005859375
+        ],
+        "upstream": [
+          null,
+          -9368.2998046875,
+          null,
+          -4477.31005859375
+        ],
+        "deterministic": true,
+        "matches_upstream": true
+      }
+    ],
+    "max_abs_error": 0.0
+  },
+  "raw_value_probe": {
+    "count": 256,
+    "min": -19792.923828125,
+    "max": 27937.72265625,
+    "mean": -901.7502435352653,
+    "std": 6177.556075832988
+  },
+  "upstream_provenance": {
+    "git_commit": "172e7d1a1d501282899b8a5a2e251c174c43f98f",
+    "git_dirty": true,
+    "resolved_config_sha256": "6f4f6781eceeda496a3e600f754708ac644fc68be0057d4fe4bcb847ea0cc61f",
+    "critical_sha256": {
+      "src/ntuple/m6.cpp": "3152d41c16b5f69122d2629e892a4bf8784eca877a2ea49ea1294077bc7f52c6",
+      "src/ntuple/m6.hpp": "9c88ad5fbd0a391b39f86ec3e1d5f2306f6a83b6e03df5709131ec1c257fb23d",
+      "src/ntuple/ntuple.cpp": "3a054fea30898d6506fe57add7e0c097ae0bd8a153cdadcf1888c2f797ce4c81",
+      "src/ntuple/ntuple.hpp": "b01c52b314c3afc4989a9ed750bb59496601ccf21a9e2ce22c224fb31f5f145c",
+      "src/agent/m6_agent.cpp": "deb0a9849cb32d5edfd1a4c2b02042cd8ecf1a3501e32460f140c33f008bc9ee",
+      "build/ntuple_m6_tool.exe": "ea033133065448b3d128d049ff02f10d6cff75104f08ed38f96d7f9696fc68a5",
+      "build/2048_ai.exe": "6c3becc2ccb78f255a62675f0f61ca4a044a9179cf85a5f26ba85b9dcf96e1b3"
+    }
+  }
+}
