@@ -295,7 +295,18 @@ P6 micro A/B：
 
 CI 不依赖真实 512 MiB checkpoint。
 
-当前报告写入时：**等待本轮 implementation commit push 后触发远端 GitHub Actions；最终 CI 结果将在收口后回写。**
+远端 implementation CI 已完成：
+
+- implementation commit：`4ceebef9a028ec084c18248d41d827c804e333de`
+- GitHub Actions：CI run #15
+- run ID：`35395397608`
+- event：push
+- conclusion：**success**
+- M2 C++ backend build：success
+- M3 C++ tuple backend build：success
+- full pytest step：success
+
+因此远端 CI gate：PASS。
 
 ## 20. FROZEN VERIFICATION
 
@@ -346,9 +357,15 @@ Performance Unblock implementation 主要包括：
 
 ## 23. FINAL GIT STATE
 
-本报告写入时处于 closeout implementation worktree，尚未创建 M3 tag，尚未把 M3 标记为 frozen/AUDITED PASS。
+Search Performance Unblock implementation commit：
 
-Search Performance Unblock implementation commit / push / CI 完成后，本节将补充最终 commit 与远端状态。
+`4ceebef9a028ec084c18248d41d827c804e333de`
+
+该 commit 已 push 到 `origin/main`，并由 GitHub Actions run #15（ID `35395397608`）验证为 success。
+
+本次随后仅允许一个 report-only closeout commit 记录上述 CI 事实；它不改变 Search implementation。
+
+未创建 M3 tag，未将 M3 标记为 frozen / AUDITED PASS，未进入 M4/M5。
 
 ## 24. REMAINING BLOCKERS
 
