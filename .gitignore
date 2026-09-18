@@ -29,6 +29,10 @@ Thumbs.db
 desktop.ini
 .idea/
 .vscode/
+.vs/
+
+# Local milestone artifacts (large/raw/intermediate; compact reports belong in reports/)
+artifacts/
 
 # Local external Teacher checkpoints
 teacher_checkpoints/**/*.bin

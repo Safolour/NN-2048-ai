@@ -114,7 +114,7 @@ artifact 存在时禁止重新生成。
 
 # 6. Supervision 锁死
 
-M3 已证明 Search values 不能当 absolute future-score target。
+M3 已证明 Search values 不能当 absolute future-score target。M3 calibration validation 仅 1 game / 8 states，affine mapping validation/test 不稳定；M4 不得复用该 affine mapping 或其 slope/intercept 作为 absolute target。
 
 因此 M4 两个架构都固定：
 - loss = teacher-best-action 4-class cross entropy
@@ -387,10 +387,11 @@ M4 禁止 architecture-specific：
 Git 可提交：
 - M4 harness/scripts
 - CPU-testable tests
-- compact JSON summary
-- `M4_REPORT.md`
+- `reports/m4_architecture_compare.json`
+- `reports/M4_REPORT.md`
 
 不得提交 GPU model binary / 大型 raw score dump。
+从 M4 起禁止在仓库根目录新增 milestone report / result JSON；所有可提交 summary/report 必须进入 `reports/`。
 
 # 19. 建议新增文件
 
@@ -398,8 +399,8 @@ Git 可提交：
 - `benchmarks/run_m4_architecture_compare.py`
 - `benchmarks/benchmark_m4_architecture_performance.py`
 - `tests/test_m4_architecture_compare.py`
-- `m4_architecture_compare.json`
-- `M4_REPORT.md`
+- `reports/m4_architecture_compare.json`
+- `reports/M4_REPORT.md`
 
 如需一个极小公共 helper，可新增 `src/game2048/m4_compare.py`。
 禁止大 framework，禁止改 M2 model architecture。
@@ -508,7 +509,7 @@ P0 frozen/preflight/full pytest
 
 M4 candidate 必须创建普通 implementation candidate commit并 push。该 commit 是 M4 candidate implementation 的权威候选 SHA。
 
-candidate CI green 后，如 `M4_REPORT.md` 需要记录实际 CI run ID/conclusion，允许再创建**至多一个** docs/report-only closeout descendant；该 descendant 不得修改 src/cpp/tests/benchmarks/result JSON/model selection，且不得冒充 implementation candidate commit。若创建，必须再次等待它自己的 CI green。
+candidate CI green 后，如 `reports/M4_REPORT.md` 需要记录实际 CI run ID/conclusion，允许再创建**至多一个** docs/report-only closeout descendant；该 descendant 不得修改 src/cpp/tests/benchmarks/result JSON/model selection，且不得冒充 implementation candidate commit。若创建，必须再次等待它自己的 CI green。
 
 禁止：
 - 创建 M4 audited tag

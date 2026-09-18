@@ -116,6 +116,13 @@ train-only affine fit：
 - validation R² = **0.0442735933**
 - test R² = **0.9297664817**
 
+calibration 的 game-level split 实际为：
+- train = 12 games / 96 states
+- validation = **1 game / 8 states**
+- test = 3 games / 24 states
+
+validation 只有 1 个 game / 8 states，样本太小；validation/test R² 差异因此不能支持把 affine mapping 当作可靠绝对标尺。该限制必须传递到后续 milestone，不得复用本次 affine 参数作为 absolute Q/V/A target。
+
 validation/test 稳定性不足，因此不晋升到 CALIBRATED_FUTURE_SCORE。
 最终语义保持：
 - RAW_TUPLE_HEURISTIC
