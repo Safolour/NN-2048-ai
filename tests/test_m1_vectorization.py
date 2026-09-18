@@ -212,9 +212,9 @@ def test_movement_kernels_have_no_per_board_python_iteration():
 
     The forbidden spellings are listed explicitly, and the loop variables that
     would indicate an N-dependent loop are named.  A fixed ``range(4)`` over the
-    four actions or columns, or a ``range(3)`` over the three merge boundaries,
-    stays allowed because those are compile-time constants independent of the
-    batch size.
+    four actions / four lines of one board, or a ``range(3)`` over the three merge
+    boundaries, stays allowed because those are compile-time constants
+    independent of the batch size.
     """
     import ast
     import inspect
@@ -222,9 +222,11 @@ def test_movement_kernels_have_no_per_board_python_iteration():
     import textwrap
 
     #: Loop variables that can only ever be a fixed constant: the action index,
-    #: the column index within one line.  Iterating over any *other* name -- and
-    #: in particular over `board`, `line`, `row` or `entry` -- is per-board work.
-    allowed_loop_variables = {"_column", "action", "_action", "_pass"}
+    #: the column index within one line, and the index of one of the four lines
+    #: of a single board (used by the checked reward aggregation).  Iterating over
+    #: any *other* name -- and in particular over `board`, `line`, `row` or
+    #: `entry` -- is per-board work.
+    allowed_loop_variables = {"_column", "action", "_action", "_pass", "column"}
 
     forbidden = (
         r"np\.apply_along_axis",
@@ -238,16 +240,44 @@ def test_movement_kernels_have_no_per_board_python_iteration():
     # contract lives in ``test_production_path_never_calls_m0_move_without_spawn``.
     forbidden_calls = (r"\bmove_without_spawn\s*\(",)
 
-    loop_pattern = re.compile(r"for\s+(\w+)\s+in\s+range\s*\(\s*([^)]*)\)")
-
-    def executable_source(function) -> str:
+    def function_ast(function):
+        """Parsed AST of ``function`` with the docstring removed."""
         tree = ast.parse(textwrap.dedent(inspect.getsource(function)))
-        body = tree.body[0].body
+        node = tree.body[0]
+        body = node.body
         if body and isinstance(body[0], ast.Expr) and isinstance(
             body[0].value, ast.Constant
         ):
             body = body[1:]  # drop the docstring
+        return node, body
+
+    def executable_source(function) -> str:
+        _, body = function_ast(function)
         return "\n".join(ast.unparse(node) for node in body)
+
+    def range_loops(function):
+        """Every ``for <var> in range(<bound>)`` in the *executable* code.
+
+        Read from the AST, so text inside a docstring or a comment can never be
+        mistaken for a loop.
+        """
+        _, body = function_ast(function)
+        found = []
+        for statement in body:
+            for child in ast.walk(statement):
+                if not isinstance(child, ast.For):
+                    continue
+                target, iterator = child.target, child.iter
+                if not isinstance(target, ast.Name) or not isinstance(
+                    iterator, ast.Call
+                ):
+                    continue
+                if not (isinstance(iterator.func, ast.Name)
+                        and iterator.func.id == "range"):
+                    continue
+                bound = ast.unparse(iterator.args[0]) if iterator.args else ""
+                found.append((target.id, bound))
+        return found
 
     for name in (
         "_move_groups",
@@ -259,7 +289,6 @@ def test_movement_kernels_have_no_per_board_python_iteration():
         "is_terminal_batch",
     ):
         function = getattr(fast_env_module, name)
-        source = inspect.getsource(function)
         code = executable_source(function)
         for pattern in forbidden + forbidden_calls:
             match = re.search(pattern, code)
@@ -268,7 +297,7 @@ def test_movement_kernels_have_no_per_board_python_iteration():
                 f"{pattern!r}: {match.group(0)!r}"
             )
 
-        for variable, argument in loop_pattern.findall(source):
+        for variable, argument in range_loops(function):
             assert variable in allowed_loop_variables, (
                 f"{name} loops over {variable!r}, which is not one of the fixed "
                 f"constants {sorted(allowed_loop_variables)}: this is an "

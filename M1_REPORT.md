@@ -6,9 +6,16 @@
 PASS
 ```
 
-全部 39 条 M1 Exit Criteria 通过（第 1–35 条为 M1 原有条目，
-第 36–39 条为本轮性能修复新增，逐条见 §P），其中性能相关的 3 条以
-**同机实测**为依据（§R.3 / §R.5 / §R.6）。
+M1 = FINAL PASS
+
+> Final PASS includes the post-audit int64 aggregate-overflow fix documented in §S.
+> The earlier `m1-fastenv-pass` tag (commit `a34e56b`) predates this fix and is
+> retained only as a historical snapshot; it is **not** the final defect-free
+> version. The final version is tagged `m1-fastenv-final-pass`.
+
+全部 43 条 M1 Exit Criteria 通过（第 1–35 条为 M1 原有条目，第 36–39 条为
+向量化修复新增，第 40–43 条为本次 post-audit 溢出修复新增，逐条见 §P），
+其中性能相关的条目以**同机实测**为依据（§R.3 / §R.5 / §R.6 / §S）。
 
 M1 的唯一目标——在冻结的 M0 Reference Environment 之上建立**可严格验证的高速
 批量状态生产者**——已达成。movement production hot path 中**不再存在任何与 N
@@ -29,15 +36,18 @@ M1 的唯一目标——在冻结的 M0 Reference Environment 之上建立**可�
 | `tests/test_m1_batch_env.py` | 24 个测试：`Fast2048BatchEnv` 构造、reset、reset_where、step、illegal action、rollout |
 | `tests/test_m1_high_tiles.py` | 37 个测试：高位 tile、int64 边界、overflow 契约 |
 | `tests/test_m1_vectorization.py` | 8 个测试：向量化回归契约（见 §R.4） |
+| `tests/test_m1_reward_overflow.py` | 31 个测试：int64 reward / score 聚合溢出契约、边界随机 differential 与 `step` 原子性（见 §S） |
 | `benchmarks/_utils.py` | benchmark/profiling 共享工具：环境元数据、CPU/RSS 采样、计时与表格渲染（仅 stdlib + NumPy） |
 | `benchmarks/benchmark_m1_env.py` | 吞吐 benchmark：规模 sweep、worker scaling、primitive、producer→consumer |
 | `benchmarks/profile_m1_env.py` | wall-clock profiler（+ 可选 `cProfile`） |
 | `benchmarks/benchmark_ab_vectorization.py` | **同机 A/B**：old per-board 路线 vs new 向量化路线（§R.5） |
 | `docs/M1_FAST_ENV_SPEC.md` | M1 权威规格（§3.5 为向量化实现说明） |
 | `M1_REPORT.md` | 本文件 |
-| `benchmark_results.json` | 本轮（向量化修复后）benchmark 原始结果 |
-| `baseline_before_vectorization.json` | 修复前同机 baseline 原始结果（A/B 的 OLD 侧） |
+| `benchmark_results.json` | 向量化修复后 benchmark 原始结果 |
+| `baseline_before_vectorization.json` | 向量化修复前同机 baseline 原始结果（A/B 的 OLD 侧） |
 | `ab_vectorization.json` | 同机 A/B benchmark 原始结果 |
+| `sanity_after_final.json` | 本次 post-audit 溢出修复后的性能 sanity 原始结果 |
+| `sanity_after_primitives.json` | 同上，primitive 部分 |
 
 **未修改任何 M0 文件**（见 §C）。`src/game2048/__init__.py` 也未改动：
 M1 通过 `from game2048.fast_env import ...` 显式导入，避免触碰冻结文件。
@@ -74,7 +84,7 @@ $ git diff --stat HEAD -- \
 M0 文件是否被修改: 否
 M0 tag:           m0-reference-pass (annotated) -> 3f2def1
 M1 开始前 pytest: 261 passed
-M1 结束后 pytest: 391 passed（261 M0 + 130 M1，全部通过）
+M1 结束后 pytest: 422 passed（261 M0 + 161 M1，全部通过）
 ```
 
 `git status --short` 只显示新增文件，没有任何 M0 文件被修改或删除。
@@ -87,14 +97,14 @@ M1 结束后 pytest: 391 passed（261 M0 + 130 M1，全部通过）
 
 ```text
 python -m pytest
-391 passed
+422 passed
 ```
 
 | 项目 | 数量 |
 | --- | --- |
-| pytest 总数 | 391 |
+| pytest 总数 | 422 |
 | M0 tests | 261（全部继续通过，未被排除） |
-| M1 tests | 130（向量化修复前 122，新增 8 条向量化回归测试，见 §R.4） |
+| M1 tests | 161（122 原有 + 8 向量化回归 + 31 溢出/原子性回归） |
 | pytest config 排除 M0 | 无 |
 | skip / xfail | **0** |
 | tolerance 放宽 | **无**（probability 浮点比较沿用原 `abs tol <= 1e-12`） |
@@ -124,6 +134,10 @@ legal / terminal 一律 **exact equality**，任何 mismatch 都未放宽 tolera
 **向量化修复后的回归验证**：上表全部 differential 是在
 「删除 per-board 循环、改用跨 board 向量化内核」之后重新跑出的结果，
 不是复用修复前的旧数据。
+
+**post-audit 溢出修复后的回归验证**：全部 422 条测试是在 int64 聚合溢出修复
+（§S）之后重新跑出的；原 391 条**一条未删、一条未跳过**，另外新增 31 条
+溢出/原子性回归测试。
 
 ---
 
@@ -181,8 +195,14 @@ benchmark seed: 20260918
 （向量化修复**之前**在同一台机器上跑的同一条命令、同一个 harness）
 
 动作策略：uniform random legal action；terminal env 显式 `reset_where` 后继续。
-两轮使用同一个固定 seed `20260918`，每档的 transitions 数完全相同
-（256×64 = 16,384；1024×64 = 65,536；4096×48 = 8,192×24 = 16384×12 = 196,608）。
+两轮使用同一个固定 seed `20260918`、同一个 benchmark 逻辑与同一组环境规模。
+
+**口径说明（重要）**：两轮的 step count 并不完全相同 —— OLD 侧各档都用
+`16 steps`，NEW 侧由 `TARGET_TRANSITIONS` 推出 `64 / 64 / 48 / 24 / 12 steps`。
+因此本表两列之比是**有意义的性能证据**（同一 harness、同一机器、同一 seed、
+同一环境规模、每档总 transitions 相同），但**不是严格逐指令的 A/B**。
+严格同进程、同输入、交替测量的 primitive A/B 由
+`benchmarks/benchmark_ab_vectorization.py` 提供（§R.5）。
 
 | num_envs | iterations | total transitions | OLD transitions/s | **NEW transitions/s** | speedup |
 | --- | --- | --- | --- | --- | --- |
@@ -571,7 +591,7 @@ C++ migration recommended: DEFER_TO_M2
 | 10 | illegal action 不消耗 FastEnv spawn RNG | **PASS** | 全非法 step 前后 generator state 逐 bit 相同 |
 | 11 | reset 正确 | **PASS** | 可复现；恰好 2 非空 tile；exponent ∈ {1,2} |
 | 12 | reset_where 正确 | **PASS** | 只改 mask=True；其余 board/score 逐 bit 不变 |
-| 13 | BatchEnv 不使用 N 个 ReferenceEnv object | **PASS** | 源码只持有 `_boards`/`_scores`/`_rng` 三个缓冲；无 per-game object |
+| 13 | BatchEnv 不使用 N 个 ReferenceEnv object | **PASS** | 持久核心游戏状态为 `_boards`/`_scores`/`_rng` 三块缓冲，另加整批共享的 scratch/cache（`_empty_prefix`/`_rows_buffer`/`_terminated`，普通数组、非 per-env object）；无 per-game object |
 | 14 | hot path 不逐 board 调 ReferenceEnv | **PASS** | 无任何 `Reference2048Env` / `move_without_spawn` 调用；规则本体自行实现并 differential 验证；另由 §R.4 的 monkeypatch 测试行为性钉死 |
 | 15 | board buffer `(N,16) uint8 contiguous` | **PASS** | `test_m1_batch_env.py::test_env_boards_are_always_contiguous_uint8` |
 | 16 | action batch 接口完成 | **PASS** | `move_batch(boards, actions)` |
@@ -592,19 +612,24 @@ C++ migration recommended: DEFER_TO_M2
 | 31 | C++ migration decision 已写明 | **PASS** | `DEFER_TO_M2`（§N） |
 | 32 | `docs/M1_FAST_ENV_SPEC.md` 已生成 | **PASS** | 见文件；§3.5 已更新为向量化实现说明 |
 | 33 | `M1_REPORT.md` 已生成 | **PASS** | 本文件 |
-| 34 | `python -m pytest` 全绿 | **PASS** | 391 passed（261 M0 + 130 M1，0 skip / 0 xfail） |
+| 34 | `python -m pytest` 全绿 | **PASS** | 422 passed（261 M0 + 161 M1，0 skip / 0 xfail） |
 | 35 | M2 尚未开始 | **PASS** | 无 network/trainer/replay/self-play/teacher/expectimax/search 代码；未加载 tuple checkpoint |
 | **36** | **movement hot path 无 N-dependent Python 循环** | **PASS** | §R.2 / §R.3 字段 `N-dependent Python movement loop: NONE`；§R.4 的 4 类回归测试钉死 |
 | **37** | **`move_batch` 相对修复前提速 ≥ 2.0×** | **PASS** | 152.0 k → 787.4 k boards/s = **5.18×**（同进程 A/B 对照 10.97×），§R.6 |
 | **38** | **4096-env 端到端吞吐相对修复前提速 ≥ 1.5×** | **PASS** | 14,826 → 73,571 transitions/s = **4.96×**，§R.6 |
-| **39** | **修复未破坏既有 M1 正确性与 API** | **PASS** | 391 passed（原 383 条全部保留并通过，新增 8 条）；公开 API 名称/签名/返回类型/语义未变 |
+| **39** | **修复未破坏既有 M1 正确性与 API** | **PASS** | 原 391 条全部保留并通过（新增 8 条向量化回归后为 391）；公开 API 名称/签名/返回类型/语义未变 |
+| **40** | **row / board / score 三层 int64 聚合受检，不依赖 `np.errstate`** | **PASS** | §S.2；`[61,61,61,61]` 与两个 `[61,61]` 行均抛 `OverflowError`（修复前返回 `-9223372036854775808`） |
+| **41** | **`step()` overflow 具备原子性** | **PASS** | §S.3；异常后 board / score / RNG 逐 bit 不变，`test_m1_reward_overflow.py` 断言 |
+| **42** | **安全检查未造成 >10% 性能回退** | **PASS** | §S.5；同进程交替 A/B 中位 **+1.7%**（min +4.3% / mean +2.6%） |
+| **43** | **文档中的错误 int64 边界（exponent 53）与「三块缓冲」描述已纠正** | **PASS** | §S；`fast_env.py` 模块说明 / `move_batch` docstring / `docs/M1_FAST_ENV_SPEC.md` §4.1 / §11.1 均已改正 |
 
 ```text
-39 / 39 PASS  →  M1 = FINAL PASS
+43 / 43 PASS  →  M1 = FINAL PASS
 ```
 
-第 36–39 条是本轮「M1 性能修复与最终验收」新增的验收项；
-第 1–35 条为 M1 原有 Exit Criteria，全部在**修复之后**重新跑过并保持通过。
+第 36–39 条是「M1 性能修复与最终验收」新增的验收项，
+第 40–43 条是本次「M1 Post-Audit Correctness Fix」新增的验收项；
+第 1–35 条为 M1 原有 Exit Criteria，全部在**最后一次修复之后**重新跑过并保持通过。
 
 ---
 
@@ -823,8 +848,10 @@ env step x48             10.78 k    146.30 k    13.57x
 
 同机修复前 baseline 原始数据保留在 `baseline_before_vectorization.json`，
 修复后数据在 `benchmark_results.json`，A/B 数据在 `ab_vectorization.json`。
-两侧使用同一台机器、同一个固定 seed、同一个 harness、同一个 workload 定义，
-**没有任何 workload 缩减或口径变更**。
+两轮使用同一台机器、同一个固定 seed、同一个 harness 与同一组环境规模；
+但**部分档位的 step count 不同**（OLD 全部 16 steps；NEW 为 64/64/48/24/12）。
+因此 §G 的比值是性能证据而非严格逐指令 A/B；严格同进程、同输入、交替测量的
+primitive A/B 见 §R.5。**没有任何档位被缩小以伪造提速**。
 
 ### R.7 What was explicitly NOT done
 
@@ -854,3 +881,222 @@ Pool，未使用 tuple 8×6 checkpoint，未做 GPU forward。
 M2 的输入已经就绪：一个与 M0 逐 bit 一致、可严格验证、
 movement hot path 完全没有 N-dependent Python 循环、
 并在 4096 env 处标定过饱和点（~72 k transitions/s）的批量状态生产者。
+
+
+---
+
+## S. Post-Audit int64 Reward Aggregation Fix
+
+代码审查在 `a34e56b` 上发现一个**明确的 correctness bug**：多个**各自可表示**的
+merge reward 在同一 row 或同一 board 内累加后可能静默回绕成负数。
+本节记录该 bug、修复、回归测试与性能影响。
+
+```text
+Audit finding:
+  Multiple individually representable merge rewards could overflow
+  np.int64 during row/board aggregation without raising.
+
+Affected pre-fix commit:
+  a34e56b36a2fdf3e9b1eb66c0b3ea1afeeb5561e
+
+Old tag:
+  m1-fastenv-pass
+  retained unchanged for history (NOT moved, NOT deleted)
+
+Fix:
+  checked int64 aggregation at three levels (row / board / score),
+  all range checks performed BEFORE the addition, plus step() reordering
+  so every check completes before the first state mutation.
+
+Row-level checked aggregation:      PASS
+Board-level checked aggregation:    PASS
+Score checked aggregation:          PASS
+Overflow atomicity:                 PASS
+
+New regression tests:
+  tests/test_m1_reward_overflow.py (31 tests)
+
+pytest:
+  422 passed / 0 failed / 0 skipped / 0 xfailed
+  (M0 261 + M1 130 + overflow 31; was 391 before this fix)
+
+move_batch sanity:
+  ~787 k boards/s (pre-fix, benchmark_results.json)
+  -> ~989 k boards/s (post-fix, same harness/methodology)
+  same-process interleaved A/B vs pre-fix code: +1.7% median time
+
+4096-env sanity:
+  73,571 transitions/s (pre-fix)
+  -> 84,990 transitions/s (post-fix, 4096 env x 48 steps, same harness)
+
+M0 modified:
+  NO
+
+M2 started:
+  NO
+
+Final status:
+  M1 = FINAL PASS
+```
+
+### S.1 The bug
+
+两层各自都会静默回绕，而当时的保护是**无效**的。
+
+**Row 层。** `_merge_left_rows` 用 `reward[can_merge] += _MERGE_REWARD[...]`
+累加同一条 line 上不同边界的 merge。`[61,61,61,61]` 会 merge 两次：
+
+```text
+(61+61 → 62) + (61+61 → 62) = 2**62 + 2**62 = 2**63 = 9223372036854775808
+INT64_MAX                                   = 9223372036854775807
+```
+
+修复前的实测输出：
+
+```text
+M0 reward = 9223372036854775808        (Python int, 无上限)
+M1 reward = -9223372036854775808       ← 静默回绕
+```
+
+**Board 层。** `_move_groups` 用
+`with np.errstate(over="raise"): line_reward.reshape(...).sum(axis=1)` 聚合
+4 条 line。两个 `[61,61]` 行各付 `2**62`，合计 `2**63`，同样回绕。
+
+**为什么 `np.errstate` 挡不住。** NumPy **只对整数标量运算**发出 overflow
+信号；整数组加法与整数 reduction 一律静默回绕：
+
+```python
+a = np.array([2**62, 2**62], dtype=np.int64)
+with np.errstate(over="raise"):
+    a.sum()        # -> -9223372036854775808，没有任何异常
+```
+
+已实测确认（`a + a` 同样不抛；只有 `np.int64(2**62) + np.int64(2**62)` 这种
+标量运算才会抛 `FloatingPointError`）。因此原有的 `np.errstate(over="raise")`
+**不是** int64 reward 的 correctness 保障。
+
+### S.2 The fix
+
+新增内部常量与受检加法 helper：
+
+```python
+_INT64_MAX: np.int64 = np.iinfo(np.int64).max
+
+def _checked_add_nonnegative_int64(total, increment, *, context):
+    if np.any(increment > (_INT64_MAX - total)):
+        raise OverflowError(...)      # 先检查
+    return total + increment          # 再相加
+```
+
+三层各自接入：
+
+| 层 | 位置 | 做法 |
+| --- | --- | --- |
+| Row | `_merge_left_rows` | 每个 merge 边界先比较 `increment > (_INT64_MAX - reward[can_merge])`，通过才 `reward[can_merge] += increment` |
+| Board | `_move_groups` | 固定 `for column in range(BOARD_COLUMNS)` 四次受检累加；`headroom` 递推而非每次重算 `INT64_MAX - total` |
+| Score | `Fast2048BatchEnv.step` | `_checked_add_nonnegative_int64(self._scores, rewards, ...)` |
+
+`_move_groups` 中**固定 4 次的 `for column in range(BOARD_COLUMNS)`** 是与 N
+无关的编译期常量循环，符合规格；**没有**任何 `for board in boards` /
+`for row in rows` 之类的 N-dependent 循环。reward dtype 仍固定 `np.int64`；
+**未**使用 `dtype=object`，**未**退化为 per-board Python `int`。
+
+### S.3 step() atomicity
+
+修复前 `step()` 的顺序是：
+
+```text
+move → spawn（写 _boards + 消耗 RNG）→ 聚合 reward → _scores += rewards
+```
+
+board-level 聚合一旦抛异常，**board 已经被 spawn 改过、RNG 也已经被消耗**，
+环境处于半提交状态。
+
+修复后顺序改为：
+
+```text
+1. move_batch
+2. 得到 rewards
+3. 检查 scores + rewards 是否 int64-safe      ← 所有范围检查都在此完成
+4. 只有通过才 spawn（写 board + 消耗 RNG）
+5. 提交 score
+6. terminal
+```
+
+因此 `OverflowError` 必然发生在**第一次状态改动之前**：
+board / score / RNG 全部保持原样。**未**引入任何 transaction / 回滚系统，
+**未**为测试特殊回滚 RNG —— 只是把既有的检查放在正确的位置。
+对不会溢出的普通对局，RNG 调用次数与顺序完全不变（检查是纯比较，不抽随机数）。
+
+### S.4 Exact boundary results
+
+手工核对的边界值（规格 §41）：
+
+```text
+INT64_MAX   = 9223372036854775807 = 2**63 - 1
+2**62       = 4611686018427387904
+2**63       = 9223372036854775808  > INT64_MAX
+2**62+2**61 = 6917529027641081856  <= INT64_MAX
+```
+
+| 情形 | M0 reward | M1 行为 |
+| --- | --- | --- |
+| 单个 `61 + 61` | `2**62` | 正常返回 `2**62` |
+| 单个 `62 + 62` | `2**63` | `OverflowError`（与修复前一致） |
+| `[61,61,61,61]` 一行两次 merge | `2**63` | **`OverflowError`（本次修复）** |
+| 两个 `[61,61]` 行 | `2**63` | **`OverflowError`（本次修复）** |
+| `[61,61]` + `[60,60]` | `2**62+2**61` | **正常返回精确值（本次修复保证不被误拒）** |
+
+四方向（UP / DOWN / LEFT / RIGHT）均已参数化验证；其中 `[61,61,61,0]`
+这类**非对称**行也单独验证，确保 destination 侧没有被搞混。
+
+### S.5 Performance impact
+
+性能 sanity 命令：
+`python benchmarks/benchmark_m1_env.py --num_envs 4096 --steps 48`
+
+| 指标 | 修复前 | 修复后 | 变化 |
+| --- | --- | --- | --- |
+| `move_batch` primitive（同 harness） | 787,435 boards/s | **988,751 boards/s** | +25.6% |
+| 4096 env × 48 steps | 73,571 transitions/s | **84,990 transitions/s** | +15.5% |
+
+（4096-env 档两次独立复测为 83,950 与 84,990 transitions/s。）
+
+两次测量之间运行环境发生了变化（OS build 从 `10.0.26100` 变为 `10.0.26200`），
+因此上表**不能**用来判断检查开销。为此另做了**同进程、同输入、交替测量**的
+严格 A/B：用 `git show a34e56b:src/game2048/fast_env.py` 取出修复前模块，
+与当前模块在同一进程内对同一批 4,096 boards 交替计时各 41 次：
+
+```text
+PRE-FIX  move_batch  中位 3,664.1 us   -> 1,117,873 boards/s
+CURRENT  move_batch  中位 3,727.0 us   -> 1,099,007 boards/s
+中位比值 1.0172 (+1.7%)   min 比值 1.0434 (+4.3%)   mean 比值 1.0257 (+2.6%)
+```
+
+即安全检查的真实代价约 **+1.7%**（中位），远低于 10% 的告警阈值。
+
+中间版本曾出现 +10.2% 的回退。按要求先 profile 而不是删检查：逐构造二分定位到
+开销来自受检路径里两处**额外的稀疏 mask 索引**（`np.subtract(..., where=...)`
+的 masked 写 + 一次额外 gather），而不是比较运算本身。把 row 层检查改成直接
+比较 `increment > (_INT64_MAX - reward[can_merge])`（复用已有的 `can_merge`
+索引、不新增 gather）、board 层改用递推 `headroom` 之后，回退降到 +1.7%。
+**检查本身从未被删除或弱化。**
+
+`_pack_left_rows` / `_merge_left_rows` 的向量化结构、`_LINE_ORDER` /
+`_LINE_INVERSE`、canonical movement、spawn、RNG、reset / reset_where、
+legal mask 与 terminal 定义**全部未改动**。
+
+### S.6 What was explicitly NOT done
+
+* 未重写 movement architecture，未改 `_LINE_ORDER` / `_LINE_INVERSE` /
+  canonical movement / `_pack_left_rows` 算法；
+* 未改 spawn / RNG / reset / reset_where / legal mask / terminal / Action /
+  board encoding 的语义；
+* 未修改任何公开 API 的名称、签名或返回类型；
+* 未引入 C++ / pybind11 / Cython / Numba / Triton / CUDA / Rust；
+* 未用 `dtype=object` 或 per-board Python `int` 逃避 int64 上限；
+* 未为了性能删除或弱化 overflow 检查；
+* 未删除、skip、xfail 任何既有测试，未放宽任何 tolerance；
+* 未修改任何 M0 冻结文件；
+* 未移动 `m0-reference-pass`，未移动 `m1-fastenv-pass`；
+* 未开始 M2，未安装 PyTorch，未使用 tuple 8×6 checkpoint。

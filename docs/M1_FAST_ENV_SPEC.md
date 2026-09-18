@@ -213,21 +213,87 @@ e + e → e + 1        reward = 2 ** (e + 1)
 
 M0 的 reward 是 **Python 任意精度 int**，M1 是 **int64**。
 
+M1 的 int64 契约有**两个**彼此独立的上限，任何一层越界都必须抛
+`OverflowError`。单独理解「单个 merge 能不能表示」是不够的。
+
+#### 上限一：单个 merge 的可表示性
+
+两个指数为 `e` 的 tile 合并需要 `2 ** (e + 1)`：
+
+```text
+e = 61 :  reward = 2**62 = 4611686018427387904   ← 可以表示
+e = 62 :  reward = 2**63 = 9223372036854775808   ← 超过 INT64_MAX
+          INT64_MAX = 2**63 - 1 = 9223372036854775807
+```
+
+`MAX_SAFE_MERGE_EXPONENT = 62` 的语义是「**指数 `e >= 62` 的 pair 禁止
+merge**」，因此**最大可 merge 的 exponent 是 61**。
+（常量名容易被误读成「62 可以 merge」；本次不重命名以保持 API 稳定，只在此
+写清语义。）
+
+#### 上限二：整次 action 总 reward 的可表示性
+
+即使每一个单 merge 都满足 `e <= 61`，**多个 merge 的 reward 累加后仍可能超过
+`INT64_MAX`**。此时同样必须抛 `OverflowError`：
+
+```text
+行内聚合（同一行两个 merge）:
+  61 61 61 61   向左
+  = (61+61 → 62) + (61+61 → 62)
+  = 2**62 + 2**62 = 2**63  >  INT64_MAX
+  → M1 抛 OverflowError
+
+盘面聚合（不同行各一个 merge）:
+  row 1: 61 61
+  row 2: 61 61   向左
+  = 2**62 + 2**62 = 2**63  >  INT64_MAX
+  → M1 抛 OverflowError
+```
+
+仍然合法、必须精确返回的反例（接近上限但不越界）：
+
+```text
+row 1: 61 61
+row 2: 60 60   向左
+= 2**62 + 2**61 = 6917529027641081856  <=  INT64_MAX
+→ M1 正常返回该精确值
+```
+
 | | 支持范围 |
 | --- | --- |
 | M0 | 任意（`254 + 254 → 255`，reward = `2**255`） |
-| M1 | 最高 exponent `61`（reward `2**62`） |
+| M1 | 单 merge：`e <= 61`；且整次 action 的**真实总 reward** `<= INT64_MAX` |
 
-`MAX_SAFE_MERGE_EXPONENT = 62`：指数 `e >= 62` 的 merge 需要 reward `2**(e+1) >= 2**63`，
-超出 int64。
+#### 实现约束（不可回退）
 
-M1 **绝不静默回绕**。当某行的 merge 无法精确表示时：
+* 检查必须在**加法发生之前**完成：`increment > (INT64_MAX - total)`。
+  先算再加、再检查结果是否为负是**禁止**的。
+* **禁止依赖 `np.errstate(over="raise")`** 捕获整数溢出。NumPy 只对**标量**
+  整数运算发出 overflow 警告：
 
-* 抛出 **`OverflowError`**（不会返回错误数字，也不会 wrap）；
-* 错误信息给出触发 merge 的指数与原因。
+  ```python
+  a = np.array([2**62, 2**62], dtype=np.int64)
+  with np.errstate(over="raise"):
+      a.sum()          # -> -9223372036854775808，不抛异常
+  ```
+
+  因此数组加法与整数 reduction（`.sum(axis=1)` 等）会**静默回绕**，
+  不能作为 correctness 保障。M1 使用显式比较。
+* 生产路径 reward dtype 固定 `numpy.int64`；**禁止**用 `dtype=object`、
+  逐 board Python `int` 或逐 board Python 循环来逃避该上限。
+* fast path 必须保持跨 board 向量化；新增的检查也只是数组级比较，
+  **不得**引入与 N 相关的 Python 循环。
+
+#### 与 M0 的 divergence（正式定义）
+
+> M0 reward 使用 Python arbitrary-precision int；M1 FastEnv reward 使用
+> `np.int64`。因此，只要**单次 action 的真实总 reward** 无法精确表示为非负
+> int64，M1 就显式抛出 `OverflowError`。这包括但不限于单个 exponent ≥ 62
+> merge，也包括多个 exponent ≤ 61 merge 的 reward 聚合后超过 `INT64_MAX`。
+> M1 永远不得静默回绕。
 
 这是 **M1 与 M0 唯一一处有意的语义差异**，并且永远是显式异常。
-该范围的 board 在真实对局中不可达（到 exponent 53 之前 tile 数早已爆掉），
+该范围的 board 在真实对局中不可达（到 exponent 62 之前 tile 数早已爆掉），
 M0 仍然完整支持它们。
 
 非 merge 的高位 tile 只是滑动时**不会**抛异常（不涉及 reward）：
@@ -235,6 +301,10 @@ M0 仍然完整支持它们。
 ```text
 board[0] = 255, action = RIGHT  →  正常滑动，reward = 0，无异常
 ```
+
+`step()` 的原子性：上述所有范围检查都在**第一次状态改动之前**完成，
+因此 `OverflowError` 抛出时 board / score / RNG 都保持原样，
+不会出现「已经 spawn 但 reward 检查失败」的半提交状态。
 
 ---
 
@@ -410,12 +480,21 @@ def apply_spawn_batch(afterstates, spawn_indices, spawn_exponents) -> np.ndarray
 Fast2048BatchEnv(num_envs: int, seed: int | None = None)
 ```
 
-内部状态只有三块缓冲：
+**持久核心游戏状态**为三块缓冲：
 
 ```text
 _boards : (N,16) uint8, C-contiguous
 _scores : (N,)   int64
 _rng    : np.random.Generator
+```
+
+此外允许持有**性能 scratch / cache buffer**（整批共享的普通数组，
+不承载游戏语义、不是 per-env Python object）：
+
+```text
+_empty_prefix : (N, 17) int64   spawn 前缀和 scratch
+_rows_buffer  : (N,)    int64   可复用的行下标
+_terminated   : (N,)    bool    流水化的 terminal 缓存（惰性，可为 None）
 ```
 
 **禁止**创建 N 个 `Reference2048Env`；**禁止**创建 N 个 Python env object。

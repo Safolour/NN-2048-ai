@@ -43,19 +43,27 @@ imported from M0 -- this module never defines a second action numbering.
 
 Movement
 --------
-The core is a memoized transcription of M0's frozen single-line rule.
+The core is a fully vectorized transcription of M0's frozen single-line rule: the
+whole batch is moved at once, with **no N-dependent Python loop** anywhere.
 
 * A line is identified by its four exponents in **destination-first order**,
   which is exactly ``reference_env._line_indices`` -- the same table M0 uses, so
   the line layout can never drift.
-* That four-tuple is shifted so the non-empty exponents come first; the shifted
-  tuple is a bijection with the input class the frozen rule acts on, because the
-  rule only ever inspects the order and equality of the non-empty cells.
-* The shifted tuple is the memoization key.  A batch contains only a handful of
-  distinct line configurations, so the rule itself runs a few dozen times per
-  batch instead of once per board.  Every table entry is bit-for-bit the frozen
-  rule: the tables are built by executing ``_merge_line``'s algorithm, never by
-  a shortcut, and the result is cached for the lifetime of the process.
+* The batch is split into at most four action groups (four fixed iterations).
+  Each group is gathered into canonical line layout with one fancy index, reshaped
+  to ``(R, 4)`` ``uint8`` (``R = boards * 4``), and then packed, merged and
+  re-packed entirely with array-wide masks; one scatter writes the afterstates
+  back.  The only remaining Python loops are the fixed ``range(4)`` over the
+  actions, the fixed ``range(3)`` over the merge boundaries and the fixed
+  ``range(4)`` over the four lines of one board during reward aggregation.
+* ``pack-left`` is a rank-based gather: the non-zero cells of each row are
+  scattered to column ``cumsum(non-zero) - 1``.  That is exact in one pass.
+* ``merge-left`` visits boundaries ``0, 1, 2`` and uses a per-row
+  ``blocked_from_previous`` mask, which is what makes ``[1,1,1,1] -> [2,2,0,0]``
+  and prevents a freshly created tile from merging again.
+* There is no per-line cache: the previous ``_LINE_CACHE`` /
+  ``_merge_line_cached`` / ``_shift_line`` / ``_line_changed`` scalar helpers are
+  gone, because they were exactly the N-dependent Python loop this module avoids.
 
 Reward (identical to M0)
 ------------------------
@@ -66,13 +74,31 @@ Merging two exponent-``e`` tiles gives exponent ``e + 1`` and reward
     exp 20 + exp 20 -> exp 21, reward = 2 ** 21
     exp 21 + exp 21 -> exp 22, reward = 2 ** 22
 
-A merge at exponent ``53`` or above needs ``2 ** 54`` or more, which does not fit
-in ``int64``.  M1 **never** silently wraps: such a merge raises
-:class:`OverflowError`.  Those boards are unreachable in real play (a game that
-reached exponent 53 has produced far more tiles than the board can hold) and
-remain fully supported by M0, whose reward is an arbitrary-precision Python
-``int``.  This is the single documented divergence between M1 and M0, and it is
-always an explicit exception -- never a wrong number.
+M1's ``int64`` contract has **two** range limits, and both raise
+:class:`OverflowError` rather than wrapping.  M0 is unaffected: its reward is an
+arbitrary-precision Python ``int``.
+
+1. **Single merge.**  ``e + e -> e + 1`` pays ``2 ** (e + 1)``, so the largest
+   mergeable exponent is ``61`` (``2 ** 62``); ``e = 62`` needs ``2 ** 63`` and is
+   rejected.  Exponents ``>= 62`` are therefore unmergeable in M1.
+2. **Aggregate.**  A single action can merge on several boundaries of one line and
+   on several lines of one board.  A sum of individually representable rewards can
+   still exceed ``9223372036854775807`` (``2 ** 63 - 1``):
+
+   * ``[61, 61, 61, 61]`` merges twice in one row: ``2**62 + 2**62 = 2**63``;
+   * two rows of ``[61, 61]`` merge on two lines: ``2**62 + 2**62 = 2**63``.
+
+   Both are rejected, and so is a score update whose running total would pass the
+   ceiling.  The check is performed **before** the addition, because NumPy does
+   not signal integer overflow for array operations or reductions --
+   ``np.errstate(over="raise")`` catches *scalar* overflow only and silently
+   returns a wrapped value for ``a.sum()``.  See
+   :func:`_checked_add_nonnegative_int64`.
+
+This is the single documented divergence between M1 and M0, and it is always an
+explicit exception -- never a wrong number.  These boards are unreachable in real
+play (a game that reached exponent 62 has produced far more tiles than the board
+can hold) and remain fully supported by M0.
 
 RNG (identical distribution, batched stream)
 --------------------------------------------
@@ -312,6 +338,68 @@ for _exponent in range(MAX_SAFE_MERGE_EXPONENT + 1):
     _MERGE_REWARD[_exponent] = np.int64(1) << np.int64(_exponent + 1)
 del _exponent
 
+# --------------------------------------------------------------------------- #
+# Checked int64 reward arithmetic
+# --------------------------------------------------------------------------- #
+#: Largest value representable in ``numpy.int64``.  Every M1 reward is a sum of
+#: non-negative terms, so this is the only limit that has to be checked.
+_INT64_MAX: np.int64 = np.iinfo(np.int64).max
+
+
+def _checked_add_nonnegative_int64(
+    total: np.ndarray,
+    increment: np.ndarray,
+    *,
+    context: str,
+) -> np.ndarray:
+    """Add two arrays of non-negative ``int64`` values, refusing to wrap.
+
+    Both operands must be ``int64`` arrays holding only values ``>= 0``; the
+    result is likewise non-negative.  The sum is verified **before** it is
+    computed::
+
+        increment > (_INT64_MAX - total)   ->   OverflowError
+
+    ``np.errstate(over="raise")`` is deliberately *not* used anywhere for this.
+    NumPy only signals integer overflow for **scalar** operations; whole-array
+    additions and integer reductions such as ``.sum(axis=1)`` wrap silently:
+
+    >>> a = np.array([2 ** 62, 2 ** 62], dtype=np.int64)
+    >>> with np.errstate(over="raise"):
+    ...     a.sum()
+    -9223372036854775808          # no exception
+
+    The check is a single vectorized comparison, so it costs one pass over a
+    ``(R,)`` array and adds no per-board Python work.
+
+    Parameters
+    ----------
+    total:
+        Running ``int64`` sum, every element ``>= 0``.
+    increment:
+        ``int64`` values to add, every element ``>= 0``, broadcastable to
+        ``total``.
+    context:
+        Short description of the aggregation site, used in the error message.
+
+    Returns
+    -------
+    np.ndarray
+        ``total + increment`` as ``int64``, exact.  The inputs are never
+        modified.
+
+    Raises
+    ------
+    OverflowError
+        The true mathematical sum does not fit in ``int64``.
+    """
+    if np.any(increment > (_INT64_MAX - total)):
+        raise OverflowError(
+            f"{context}: the true reward does not fit in numpy.int64 "
+            f"(max {_INT64_MAX}); M1 refuses to emit a silently wrapped reward"
+        )
+    return total + increment
+
 
 def _pack_left_rows(rows: np.ndarray) -> np.ndarray:
     """Move every non-zero tile to the left of its row, across the whole batch.
@@ -369,9 +457,23 @@ def _merge_left_rows(packed: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         )
         if can_merge.any():
             left = work[:, _column]
+            # A single row can merge at two different boundaries, so the *row
+            # total* can exceed int64 even when every individual merge fits:
+            # ``[61, 61, 61, 61]`` merges twice, and ``2**62 + 2**62 = 2**63``
+            # does not fit.  The range check therefore runs **before** the
+            # addition -- comparing against the post-check result would be too
+            # late.  See :func:`_checked_add_nonnegative_int64` for why
+            # ``np.errstate`` cannot be used for this.
+            increment = _MERGE_REWARD[left[can_merge]]
+            if np.any(increment > (_INT64_MAX - reward[can_merge])):
+                raise OverflowError(
+                    "row merge reward aggregation: the true reward does not fit "
+                    f"in numpy.int64 (max {_INT64_MAX}); M1 refuses to emit a "
+                    "silently wrapped reward"
+                )
+            reward[can_merge] += increment
             # ``left`` is a copy, so ``left + 1`` cannot wrap in the array; the
             # overflow audit has already rejected any exponent that could.
-            reward[can_merge] += _MERGE_REWARD[left[can_merge]]
             work[can_merge, _column] = left[can_merge] + np.uint8(1)
             work[can_merge, _column + 1] = 0
         blocked = can_merge
@@ -460,10 +562,26 @@ def _move_groups(boards: np.ndarray, group_actions: np.ndarray):
         merged, line_reward = _merge_left_rows(packed)
 
         # Lines ``4 * i .. 4 * i + 3`` all belong to board ``i`` of the group.
-        with np.errstate(over="raise"):
-            rewards[selected] = line_reward.reshape(
-                group_size, BOARD_COLUMNS
-            ).sum(axis=1)
+        # A board can merge on several lines at once, so the board total needs the
+        # same checked aggregation as the row total: ``.sum(axis=1)`` would wrap
+        # silently (see :func:`_checked_add_nonnegative_int64`).  The loop is the
+        # fixed ``range(BOARD_COLUMNS)`` over the four lines of one board, never
+        # over boards.  ``headroom`` is carried forward instead of being
+        # recomputed, so each line costs one comparison and one add.
+        line_rewards = line_reward.reshape(group_size, BOARD_COLUMNS)
+        board_reward = np.zeros(group_size, dtype=np.int64)
+        headroom = np.full(group_size, _INT64_MAX, dtype=np.int64)
+        for column in range(BOARD_COLUMNS):
+            line = line_rewards[:, column]
+            if np.any(line > headroom):
+                raise OverflowError(
+                    "board merge reward aggregation: the true reward does not fit "
+                    f"in numpy.int64 (max {_INT64_MAX}); M1 refuses to emit a "
+                    "silently wrapped reward"
+                )
+            board_reward += line
+            headroom -= line
+        rewards[selected] = board_reward
 
         # Scatter the canonical board back to real board indices.  ``moved`` is
         # exactly "the board changed", so it is read straight off the afterstate.
@@ -518,7 +636,19 @@ def move_batch(boards: np.ndarray, actions: np.ndarray) -> BatchMoveResult:
         Wrong shapes, wrong dtypes (float/bool/str actions included), mismatched
         lengths, or actions outside ``0..3``.
     OverflowError
-        A merge whose reward does not fit in ``int64`` (exponent >= 53).
+        The **true total** reward of one move cannot be represented exactly in
+        ``numpy.int64`` (max ``9223372036854775807``).  Two distinct situations
+        reach this, and both are checked **before** the offending addition, so a
+        wrapped value is never produced:
+
+        1. a single merge at exponent ``>= 62`` needs ``2 ** 63`` or more;
+        2. several individually representable merges aggregate past the ceiling,
+           either within one row (``[61, 61, 61, 61]`` -> ``2**62 + 2**62``) or
+           across the lines of one board (two rows of ``[61, 61]``).
+
+        ``np.errstate(over="raise")`` is deliberately not used for this: NumPy
+        only signals *scalar* integer overflow, so array adds and reductions such
+        as ``.sum(axis=1)`` wrap silently.
     """
     board_array = _as_boards(boards)
     action_array = _as_actions(actions, board_array.shape[0])
@@ -916,11 +1046,17 @@ class BatchStepResult:
 class Fast2048BatchEnv:
     """``N`` independent 2048 games inside one object, with no per-game objects.
 
-    The environment owns three state buffers only::
+    The persistent **core game state** is three buffers::
 
         _boards : (N, 16) uint8, C-contiguous
         _scores : (N,)    int64
         _rng    : numpy.random.Generator
+
+    The class additionally holds performance scratch / cache buffers that are
+    shared by the whole batch -- ``_empty_prefix`` (spawn prefix sums),
+    ``_rows_buffer`` (reusable row indices) and ``_terminated`` (the pipelined
+    terminal mask).  They are plain arrays, never independent per-environment
+    Python objects, and they carry no game semantics.
 
     It never creates ``Reference2048Env`` instances (nor any other per-game
     object); every transition is produced by the batch functions above.
@@ -935,7 +1071,10 @@ class Fast2048BatchEnv:
       and then evaluates terminal;
     * an illegal action leaves board, score and RNG untouched
       (``spawn_index = -1``, ``spawn_exponent = 0``);
-    * ``step`` never auto-resets; the caller decides via :meth:`reset_where`.
+    * ``step`` never auto-resets; the caller decides via :meth:`reset_where`;
+    * ``step`` is **atomic** with respect to the ``int64`` reward/score range
+      checks: they all run before the first state mutation, so an
+      ``OverflowError`` leaves board, scores and RNG exactly as they were.
     """
 
     def __init__(self, num_envs: int, seed: Optional[int] = None) -> None:
@@ -1046,6 +1185,12 @@ class Fast2048BatchEnv:
         ``spawn_indices`` / ``spawn_exponents`` are ``-1`` / ``0``.  Terminal games
         are *not* auto-reset; the caller decides via :meth:`reset_where`.
 
+        Atomicity: every ``int64`` range check of a step happens **before** the
+        first state mutation.  If the merge aggregation or the score update cannot
+        be represented in ``int64``, ``OverflowError`` is raised while the board,
+        the scores and the RNG are all still untouched -- a step either happens
+        completely or not at all.
+
         Performance note: the local legal mask of this step's board is the same
         work ``is_terminal_batch`` needs for the *next* step's board, so it is
         pipelined -- each step computes the mask once and reuses the previous
@@ -1055,6 +1200,19 @@ class Fast2048BatchEnv:
         action_array = _as_actions(actions, self._num_envs)
         move = _move_batch(self._boards, action_array)
         moved = move.moved
+
+        rewards = np.where(moved, move.rewards, np.int64(0)).astype(
+            np.int64, copy=False
+        )
+
+        # Range-check the score update *before* the spawn commits anything.  The
+        # check must not be hoisted after ``_spawn_group``: that call both writes
+        # the board buffer and consumes randomness.
+        new_scores = _checked_add_nonnegative_int64(
+            self._scores,
+            rewards,
+            context="score accumulation",
+        )
 
         spawn_indices = np.full(self._num_envs, -1, dtype=np.int64)
         spawn_exponents = np.zeros(self._num_envs, dtype=np.uint8)
@@ -1066,10 +1224,7 @@ class Fast2048BatchEnv:
             spawn_indices[rows] = indices
             spawn_exponents[rows] = exponents
 
-        rewards = np.where(moved, move.rewards, np.int64(0)).astype(
-            np.int64, copy=False
-        )
-        self._scores += rewards
+        self._scores = new_scores
 
         # M0 evaluates terminal on ``s'``, the board *after* the spawn, so the
         # status is computed here on the current buffer and then cached: the next

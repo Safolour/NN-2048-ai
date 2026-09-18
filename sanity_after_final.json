@@ -1,0 +1,30 @@
+{
+  "metadata": {
+    "os": "Windows 11 (10.0.26200)",
+    "python": "3.12.10",
+    "python_implementation": "CPython",
+    "numpy": "2.5.3",
+    "cpu": "AMD Ryzen 7 H 260 w/ Radeon 780M Graphics",
+    "physical_cores": 16,
+    "logical_cores": 16,
+    "ram_bytes": 16422010880,
+    "git_commit": "a34e56b36a2fdf3e9b1eb66c0b3ea1afeeb5561e",
+    "seed": 20260918
+  },
+  "env_sweep": [
+    {
+      "num_envs": 4096,
+      "status": "OK",
+      "iterations": 48,
+      "total_transitions": 196608,
+      "wall_time_s": 4.627548899996327,
+      "median_step_s": 2.3133801499971014,
+      "transitions_per_s": 84987.32903895901,
+      "boards_per_s": 84987.32903895901,
+      "min_transitions_per_s": 76321.36664828495,
+      "max_transitions_per_s": 95873.33297636964,
+      "cpu_utilization": 0.9859431199103311,
+      "peak_rss_bytes": 0
+    }
+  ]
+}

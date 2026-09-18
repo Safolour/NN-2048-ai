@@ -2,11 +2,18 @@
 
 M0 stores the raw exponent (never clamping to a network overflow bucket) and uses
 an arbitrary-precision Python ``int`` for the reward.  M1 accumulates the reward
-in ``numpy.int64``, so a merge at exponent 53 or above cannot be represented.
+in ``numpy.int64``, so:
+``e = 61`` pays ``2**62`` (representable) and ``e = 62`` needs ``2**63``
+(not representable).  ``MAX_SAFE_MERGE_EXPONENT = 62`` therefore means
+"an exponent of 62 or above may not be merged".
 
 That is the **single documented divergence** between M1 and M0, and it is always
-an explicit ``OverflowError`` -- never a silently wrapped number.  These tests pin
-both sides of the boundary.
+an explicit ``OverflowError`` -- never a silently wrapped number.
+
+This file pins the *single-merge* side of that boundary.  The **aggregate** side
+(several individually representable merges summing past ``INT64_MAX`` within one
+row or one board, plus ``step`` atomicity) lives in
+``tests/test_m1_reward_overflow.py``; see ``M1_REPORT.md`` §S.
 """
 
 from __future__ import annotations
