@@ -1,5 +1,7 @@
 # M3 Teacher 小规模验证 — 严格施工提示词
 
+> **状态：HISTORICAL / FINAL AUDITED PASS / FROZEN。M3 已完成独立审计，本施工单保留用于复现与审计，不得作为当前阶段重新执行。当前阶段见 authoritative master plan。**
+>
 > 项目：Safolour/NN-2048-ai
 > 正式工作区：D:\CodexTasks\NN-2048-ai
 > 当前阶段：M3 Teacher 小规模验证
@@ -887,9 +889,20 @@ CALIBRATED_FUTURE_SCORE
 128 states
 ```
 
-对每个 state 使用固定 seed 集，
-用 Teacher policy 完整 rollout 到 terminal，
-估计从该 state 之后真实获得的 future score。
+对每个 state 使用固定 seed 集，完整 rollout 到 terminal，估计从该 state 之后真实获得的 future score。
+
+这里的 **calibration continuation policy 固定为 checkpoint 的原生 policy**：
+
+```text
+policy = greedy_1ply
+Q_tuple(s,a) = immediate_reward(s,a) + V_tuple(afterstate(s,a))
+```
+
+动作顺序 / tie-break 必须复用已通过 upstream anchor differential 的 frozen tuple adapter 语义；不得引入随机 tie-break。允许复用已经 differential PASS 的 M2 C++ movement primitive 与 M3 C++ tuple evaluator 加速 rollout，但不得调用 depth-3 Search 作为 continuation。
+
+也就是说：每个 rollout 的每一步都按 frozen tuple checkpoint 的 greedy_1ply policy 选动作；spawn 仍按真实 90%/10% 与空格均匀随机规则采样。禁止把 continuation policy 偷换成“每一步重新运行 decision_depth=3 Expectimax 到 terminal”。
+
+原因是本 gate 要校准的是 frozen tuple evaluator / formal-state tuple adapter 与真实 future score 的数值关系；checkpoint metadata 已明确其原生训练/推理 policy 为 `greedy_1ply`。Repeated depth-3 Search rollout 属于另一个更昂贵的 policy evaluation 问题，不是本 calibration gate 的必要条件。
 
 至少：
 
@@ -897,17 +910,33 @@ CALIBRATED_FUTURE_SCORE
 16 stochastic rollouts / state
 ```
 
-记录：
+固定定义：
+
+```text
+realized_future_score
+= 从该 formal state 开始直到 terminal 的后续 merge reward 总和
+```
+
+不得把进入该 state 之前已经累计的 `current_score` 重复计入 future score。
+
+每个 state 至少记录：
 - raw tuple afterstate value（在有明确对应 afterstate 时）
 - formal-state leaf adapter `L_tuple(s)`
-- depth-3 search best action value
-- mean realized future score
+- depth-3 search best action value（diagnostic only）
+- mean realized future score under frozen greedy_1ply continuation
 - std
 - Pearson
 - Spearman
 - affine fit slope/intercept
 - validation R²
 - MAE / RMSE
+
+必须明确区分两种用途：
+
+1. `V_tuple / L_tuple` vs greedy_1ply realized future score：允许用于本节的 calibration mapping 证据；
+2. `depth-3 search best action value` vs上述 realized future score：只作为 diagnostic correlation 记录。因为 rollout continuation 不是 repeated depth-3 Search policy，所以这组相关性不得单独证明 Search value = FUTURE_SCORE，也不得因此把 `SEARCH_VALUE_RAW_LEAF` 自动升级为 `FUTURE_SCORE` / `CALIBRATED_FUTURE_SCORE`。
+
+若后续阶段确实需要 repeated depth-3 Search policy 的 on-policy return，应另立明确预算与专门 gate；不得在 M3 calibration probe 中暗含执行。
 
 所有 calibration fit 必须 train/validation 分开，
 不得在同一批 state 上拟合又宣布验证通过。
@@ -916,31 +945,38 @@ CALIBRATED_FUTURE_SCORE
 
 # 19. 绝对 future-score 判定规则
 
-只有以下两类证据之一成立，才允许 raw/search value 标成 FUTURE_SCORE：
+对 `V_tuple / L_tuple`，只有以下两类证据之一成立，才允许标成 FUTURE_SCORE：
 
-A. 用户提供的原始训练/loader/算法代码可直接证明其 target 定义就是“从当前 state 开始的真实 future game score”；
+A. 用户提供的原始训练/loader/算法代码可直接证明其 target 定义就是“从当前 state 开始、在对应原生 policy 下的真实 future game score”；
 
 或
 
-B. 独立 holdout calibration 明确支持近似 identity，并且 Agent 在报告中给出完整数值证据。
+B. 按 §18 固定 `greedy_1ply` continuation 得到的独立 holdout calibration 明确支持近似 identity，并且 Agent 在报告中给出完整数值证据。
 
-若证据不足：
+对 `depth-3 search best action value`，§18 的 greedy_1ply rollout **不是 repeated depth-3 Search 的 on-policy return**，因此无论相关性多高，都不得凭 §18 单独把它标成 `FUTURE_SCORE` / `CALIBRATED_FUTURE_SCORE`。M3 默认保持：
 
 ```text
-value_semantics remains RAW / SEARCH_VALUE_RAW_LEAF
+SEARCH_VALUE_RAW_LEAF
+```
+
+只有另有明确数学证明，或未来专门执行 budgeted repeated depth-3 Search on-policy return gate，才允许重新审议 Search value semantics；本 M3 不要求该 gate。
+
+若 tuple evidence 也不足：
+
+```text
+V_tuple / L_tuple value_semantics remains RAW
+search value_semantics remains SEARCH_VALUE_RAW_LEAF
 ```
 
 不要硬判 FUTURE_SCORE。
 
-M3 允许完成而不把 raw value 校准成 future-score，
-但此时 Student sanity 只能使用 policy/ranking supervision。
+M3 允许完成而不把任何 raw/search value 校准成 future-score；此时 Student sanity 只能使用 policy/ranking supervision。
 
 ---
 
 # 20. calibration mapping
 
-如果 raw/search value 与 future score 高相关但不是 identity，
-允许拟合一个显式 calibration mapping。
+如果 `V_tuple / L_tuple` 与 §18 的 greedy_1ply realized future score 高相关但不是 identity，允许拟合一个显式 calibration mapping。
 
 第一版只允许：
 
@@ -951,11 +987,15 @@ future_score_hat = a * raw_value + b
 
 禁止一上来训练另一个深网络做 calibration。
 
-mapping 必须只用 train split 拟合，
-在 validation/test split 独立报告。
+mapping 必须只用 train split 拟合，在 validation/test split 独立报告。
 
-只有验证稳定后才能标：
-`CALIBRATED_FUTURE_SCORE`。
+只有 validation/test 稳定后，且 mapping 的目标 policy 明确记录为 `greedy_1ply`，对应 tuple/formal-state value 才允许标：
+
+```text
+CALIBRATED_FUTURE_SCORE
+```
+
+该 affine mapping **不得自动套到 depth-3 Search action values**；Search action value 默认继续标 `SEARCH_VALUE_RAW_LEAF`。
 
 ---
 
@@ -990,9 +1030,9 @@ ResidualMLP2048
 - raw teacher value -> V MSE
 - raw teacher value -> A MSE
 
-## 如果已证明 FUTURE_SCORE / CALIBRATED_FUTURE_SCORE
+## 如果某组 teacher action target 自身已证明 FUTURE_SCORE / CALIBRATED_FUTURE_SCORE
 
-才允许对合法动作做 Q regression。
+才允许对那一组合法动作做 Q regression。tuple/formal-state calibration 不自动赋予 depth-3 Search action values 相同语义；若 Search action values 仍是 `SEARCH_VALUE_RAW_LEAF`，不得对它们做 absolute Q regression。
 
 V/A 的绝对 target 只有在数学语义可由 action value / reward 正确推导时才使用。
 

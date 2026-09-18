@@ -1,5 +1,7 @@
 # M3 Search Performance Unblock — 严格施工提示词
 
+> **状态：HISTORICAL / COMPLETED。该性能解锁已并入 M3 audited baseline；不得在 M4+ 中重新执行或继续优化 M3 Search，除非独立发现真实 correctness regression。**
+
 > 项目：Safolour/NN-2048-ai
 > 正式工作区：D:\CodexTasks\NN-2048-ai
 > 当前阶段：M3 Teacher 小规模验证中的性能解阻子阶段
@@ -17,6 +19,8 @@
 6. m3_teacher_semantics.json
 
 若真实冲突：STOP；报告冲突；不得自行裁决。
+
+注意：`M3_REPORT.md` 中的开工 HEAD `7713855d442f7db60ae8582a8b8feb9561c39978` 是生成该报告时的历史快照；本施工单发布后的正式 `main/origin/main` 已前进到纯 docs commit `240fa3c8b3fcf3fa497d9f11c2aea262d31b46d6`。首次开工时，只要当前 HEAD 是该 commit 或其不修改 frozen/M3 implementation semantics 的纯 docs descendant，这不构成冲突，不得因此 STOP。若本施工单已经执行过并按 P0.2/P2/P6 产生了本任务自己的 WIP/implementation commit，则这些以 `240fa3c8...` 为祖先、且变更范围符合本施工单的后续 commit 也是合法恢复点；不得因为它们不是纯 docs commit 而误 STOP。
 
 # 1. 冻结基础
 
@@ -75,7 +79,7 @@ Profile：
 - 缩 dataset
 - 换 checkpoint
 - 改 Search backup/chance 概率
-- 开始 calibration
+- 开始 calibration 正式执行
 - 开始 8192-state 正式数据
 - 开始 Student sanity
 - 进入 M4/M5
@@ -102,6 +106,15 @@ I. Python call/allocation overhead
 禁止 git reset --hard / git clean / git stash / git restore / 删除 artifacts / 覆盖 semantic corpus。
 
 先记录：git status --short、HEAD、origin/main、三个 frozen tag resolution。
+
+三个 frozen tag 是 annotated tag，必须解引用到 commit 后比较；固定使用：
+`git rev-parse "m0-reference-pass^{}"`
+`git rev-parse "m1-fastenv-audited-pass^{}"`
+`git rev-parse "m2-network-audited-pass^{}"`
+不得拿 annotated-tag object SHA 与计划中的 commit SHA 直接比较后误判 tag 被移动。
+
+当前 worktree 中若仍存在用户主动删除的 M1/M2 历史临时/benchmark JSON（如 `ab_vectorization.json`、`m2_cpu_hotspots.json`、`sanity_*.json` 等），这是已知用户清理，不是 M3 regression，也不得为了追求 clean tree 自动 restore。它们不得混入本轮 M3 WIP/implementation commit；保持现状，由用户后续单独处理。
+
 .vs/ 不得 stage；512 MiB checkpoint 必须继续 Git ignored。
 
 # 7. P0.1 — 修正 full pytest 执行环境
@@ -121,8 +134,8 @@ I. Python call/allocation overhead
 只有 full pytest green 后，创建普通 WIP commit：
 m3: checkpoint correctness-pass search-performance-blocked baseline
 
-允许包含当前 M3 source/tests/benchmarks/report/profile/semantics/manifest/.gitignore。
-默认不 commit semantic corpus、大型 artifacts、512 MiB checkpoint。
+只允许显式按 M3 文件 allowlist stage 当前 M3 source/tests/benchmarks/report/profile/semantics/manifest/.gitignore；禁止 `git add -A`、`git add .` 或任何会顺带吸收用户清理删除项的广泛 stage。
+默认不 commit semantic corpus、大型 artifacts、512 MiB checkpoint，也不 commit 上述用户主动删除的 M1/M2 历史临时 JSON。
 这个 commit 不是 M3 candidate，不创建 M3 tag。
 
 # 9. P1 — evaluator 精细 microprofile
@@ -187,6 +200,8 @@ weights 使用现有 read-only NumPy memmap/buffer view，禁止每次复制 512
 
 如果实际 comparator stage_count=1，可以有 stage_count==1 fast path，但不得硬编码格式永远只有 stage 0。
 
+C++ stage selection 必须安全支持 `uint8` exponent 0..255。禁止通过未保护的 `1ULL << exponent` / `1 << exponent` 计算 max tile，因为 exponent >=64 会产生未定义/错误行为；应把 power-of-two threshold 预先转换成 threshold exponent 后比较，或使用等价的无溢出比较。必须加入 exponent 63/64/127/255 的单测。
+
 # 16. 数值语义锁死
 
 访问/累加顺序固定：pattern-major -> symmetry-minor，共 64 slots。
@@ -199,6 +214,9 @@ exponent >15 必须 clamp 到15。
 
 第一版允许 scalar no-prefetch 与 scalar prefetch 两种模式。
 只在 end-to-end 有收益时默认启用 prefetch。
+
+prefetch 必须跨当前 Windows/MSVC 本机与 Ubuntu/GCC-Clang CI 可编译：允许封装一个小型 portable helper，MSVC 使用对应 intrinsic（如 `_mm_prefetch`）或安全 no-op，GCC/Clang 可使用 `__builtin_prefetch`。禁止直接复制上游 `__builtin_prefetch` 后导致 MSVC 构建失败；也禁止为了 Windows 可编译而破坏 Linux CI。
+
 禁止第一版就上 AVX2 gather / AVX-512 / GPU table / weight compression。
 
 # 18. P3 differential correctness
@@ -252,12 +270,33 @@ Python oracle不得删除。
 A/B 的 player_nodes、chance_nodes、leaf_calls、cache lookups、cache hits 必须一致。
 全部 256 roots 的 legal mask 和 best action 必须一致。
 
+还必须逐 root 比较四个 action values（只比较双方都合法的 action），记录 max/mean abs error。若 evaluator differential 已 bit-identical 且 backup 顺序未变，目标为 action values bit-identical；若已证明只是浮点 reduction 顺序变化，max abs error 必须 <=1e-5 且 action disagreement = 0。不得只凭 argmax 相同就接受数值语义漂移。
+
 # 24. 第一性能 gate
 
-如果 exact 256-root corpus >=5.0 root decisions/s，则达到本轮 operational floor。
+如果 exact 256-root corpus >=5.0 root decisions/s，则只达到 **8192-state 数据生成的 operational floor**。
 5 roots/s 对应 8192 roots 约 27.4 分钟。
 
+`>=5 roots/s` 加上 `8192-state projected Search time <=30 minutes` 才构成本 Performance Unblock 的 throughput gate。后续 future-score calibration 属于普通 M3，不再作为 Search Performance Unblock 的 PASS 条件。
+
 若 <5.0 roots/s，不得立刻写 C++ Expectimax，必须先执行 P6 reprofile。
+
+# 24.1 已终止的 depth-3 rollout diagnostic 与恢复规则
+
+上一版施工单曾把 calibration continuation 误锁成“每一步 repeated depth-3 Expectimax 到 terminal”，并要求把 `128 × 16 = 2048` 条 rollout 投影压到 2 小时内。该解释现已废止，不再是任何 PASS gate。
+
+已经产生的 `artifacts/m3/calibration_viability_progress/` 必须保留为诊断证据，不删除、不继续补跑、不用于 calibration fit。它只证明 repeated depth-3 Search rollout 的完整对局长度可能极长，不能证明 Search kernel 本身未解阻。
+
+普通 M3 的 calibration continuation policy 已由 `M3_IMPLEMENTATION_PROMPT.md §18` 明确改为 frozen checkpoint 的原生 `greedy_1ply` policy。Search Unblock 不负责执行该正式 calibration。
+
+断线/恢复时，如果当前 `m3_search_performance_unblock.json` 已包含：
+- `p6_m2_cpp_move.variant.root_decisions_per_second >= 5.0`
+- `projected_8192_seconds <= 1800`
+- 256-root legal masks / 911 legal action values bit-identical
+- best-action disagreement = 0
+- node counts equal
+
+则 P0–P6 / P24 的已完成证据必须直接继承，禁止重跑 P0–P6，也禁止为了废止的 calibration viability gate 继续做 C++ Search。
 
 # 25. P6 — 只优化新的最大热点
 
@@ -278,7 +317,7 @@ A/B 的 player_nodes、chance_nodes、leaf_calls、cache lookups、cache hits �
 
 # 27. P6.2 frontier batching
 
-只有 C++ evaluator PASS、reprofile证明 Python orchestration >=30%、且仍 <5 roots/s 时才允许 explicit frontier/DAG evaluation。
+只有 C++ evaluator PASS、reprofile证明 Python orchestration >=30%、且 exact 256-root throughput 仍 <5 roots/s 时才允许 explicit frontier/DAG evaluation。
 
 仍必须 exact Expectimax：same probabilities、same depth、same node semantics、same backup。
 优先 Python/NumPy orchestration + 已有 C++ primitives。
@@ -291,9 +330,9 @@ A/B 的 player_nodes、chance_nodes、leaf_calls、cache lookups、cache hits �
 3. cross-chance/root batching 已测试
 4. frontier batching 已测试（如适用）
 5. exact 256-root throughput 仍 <5 roots/s
-6. reprofile 显示 Python recursion/orchestration仍 >=30%
+6. reprofile 显示 Python recursion/orchestration仍 >=30%，并且证据表明把 Search core 下沉到 C++ 是解决当前最大剩余 Search 热点的合理路线
 
-条件不全，禁止实现整套 C++ Search。
+条件不全，禁止实现整套 C++ Search。单纯因为“C++ 可能更快”不构成授权。
 
 # 29. 如果最终需要 C++ Search
 
@@ -306,8 +345,9 @@ Python Expectimax必须保留为 correctness oracle。
 
 若进入：比较 256 semantic roots + 10,000 generated legal formal states。
 Python vs C++ 比 legal mask、四 action values、best action、terminal、depth semantics。
-best action disagreement = 0。
-cache-on/cache-off 都必须一致。
+
+四 action values 必须记录 max/mean abs error；目标是 bit-identical/0.0。只有在明确证明 backup reduction 顺序变化时才允许 max abs error <=1e-5；best action disagreement 必须 = 0。
+cache-on/cache-off 都必须一致。不得只检查 best action。
 
 # 31. 绝对禁止的伪性能优化
 
@@ -321,14 +361,17 @@ Correctness：evaluator differential PASS；Search differential PASS；full pyte
 
 Throughput：exact 256-root corpus >=5.0 root decisions/s，且 8192-state projected Search time <=30 minutes。
 
+后续 calibration 不属于本 Search Unblock gate；不得再用 repeated depth-3 rollout 的总 wall-clock 反推 Search Unblock 失败。
+
 最终 profile不得还存在一个已知、可直接修复的 Python/NumPy数量级损失却被当成正常成本。
 
 如果最终最大项变成随机 512 MiB 大表内存访问本身，且已经是 differential 通过的 C++ prefetch evaluator，可以作为硬件/算法成本接受。
 
 # 33. Stretch target
 
-10 root decisions/s，不是 PASS 必需。
-达到 10/s 后如果继续优化只有小幅收益，停止，不得无限工程化。
+10 root decisions/s 是单-root Search 的 stretch target，不是 PASS 必需。
+
+达到 10/s 后如果继续优化只有小幅收益，停止，不得无限工程化。后续 calibration runtime 不再是本阶段 stretch target。
 
 # 34. 正式性能测试方法
 
@@ -345,7 +388,7 @@ Search A/B 固定同一 256-state corpus、同一 checkpoint、depth=3、cache�
 
 # 36. M3_REPORT 追加章节
 
-SEARCH PERFORMANCE UNBLOCK 至少包含：starting baseline、evaluator decomposition、leaf batch distribution、duplicate analysis、上游 M6 source hashes、C++ backend、differential、primitive A/B、exact Search A/B、reprofile、second-stage optimization、final roots/s、8192 projection、remaining blocker。
+SEARCH PERFORMANCE UNBLOCK 至少包含：starting baseline、evaluator decomposition、leaf batch distribution、duplicate analysis、上游 M6 source hashes、C++ backend、differential、primitive A/B、exact Search A/B、reprofile、second-stage optimization、final roots/s、8192 projection、已终止 repeated depth-3 rollout diagnostic（仅记录为何废止与保留 artifact）、remaining blocker。
 
 # 37. full pytest
 
@@ -356,7 +399,9 @@ SEARCH PERFORMANCE UNBLOCK 至少包含：starting baseline、evaluator decompos
 # 38. CI
 
 若新增 cpp/m3_tuple_backend，GitHub Actions 必须在 Ubuntu 同时构建 M2 C++ backend 和 M3 tuple backend，再运行 full pytest。
-CI 不得依赖真实 512 MiB checkpoint；backend unit tests用 tiny deterministic synthetic fixture。
+CI 不得依赖真实 512 MiB checkpoint。
+
+所谓 tiny deterministic synthetic fixture 不得通过修改生产 feature-space 常量来伪造一个缩小版 ABI。优先使用临时 sparse file / sparse mmap：逻辑尺寸保持真实 `8 × 2^24 × float32` weight plane，只物理写入测试实际触及的少量 page/cell；或把纯 feature-packing/kernel 逻辑拆成不要求完整 checkpoint 的 deterministic unit test。CI fixture 不得进入 Git history，也不得让 production backend 出现“测试专用小 feature space”分支。
 
 # 39. Git / 当前 M3 WIP
 
@@ -379,13 +424,15 @@ M3 SEARCH PERFORMANCE UNBLOCK PASS
 M3 SEARCH PERFORMANCE INCOMPLETE
 M3 SEARCH PERFORMANCE FAIL
 
-PASS = correctness全绿 + >=5 roots/s + projected8192<=30min + 无明显可修复数量级热点。
-INCOMPLETE = correctness可用，但 exact优化后仍<5 roots/s或需要新的重大路线决定。
+PASS = correctness全绿 + >=5 roots/s + projected8192<=30min + 无明显可修复数量级 Search 热点。
+INCOMPLETE = correctness可用，但 exact 优化后仍<5 roots/s、或 projected8192>30min、或需要新的重大 Search 路线决定。
 FAIL = 无法保持 evaluator/Search semantics 或 frozen regression。
 
 # 42. 禁止越界
 
 本轮禁止 calibration 正式执行、8192-state正式 Teacher dataset、Student training、M4、M5、Teacher promotion、换 checkpoint、Transformer vs MLP、自博弈、Replay、Double-Q、Target、Search Correction、修改 frozen M2 backend。
+
+`artifacts/m3/calibration_viability_progress/` 是上一版错误 repeated depth-3 rollout gate 遗留的诊断 evidence：必须保留，但不得继续执行、不得拟合、不得计入正式 calibration 完成度。
 
 # 43. 最终报告固定格式
 
@@ -405,21 +452,24 @@ FAIL = 无法保持 evaluator/Search semantics 或 frozen regression。
 14 SECOND-STAGE OPTIMIZATION
 15 FINAL THROUGHPUT
 16 8192 PROJECTION
-17 PYTEST
-18 CI
-19 FROZEN VERIFICATION
-20 FILES CHANGED
-21 ARTIFACTS
-22 FINAL GIT STATE
-23 REMAINING BLOCKERS
-24 NEXT M3 RESUME POINT
+17 INVALIDATED DEPTH3 ROLLOUT DIAGNOSTIC
+18 PYTEST
+19 CI
+20 FROZEN VERIFICATION
+21 FILES CHANGED
+22 ARTIFACTS
+23 FINAL GIT STATE
+24 REMAINING BLOCKERS
+25 NEXT M3 RESUME POINT
 
 # 44. 开工第一动作
 
 必须先报告：
 - current HEAD
 - current working tree
-- frozen M0/M1/M2 tag resolutions
+- frozen M0/M1/M2 tag resolutions，必须用 `^{}` 解引用到 commit 后报告；不得报告 annotated-tag object SHA 冒充 commit SHA
+- 当前 `M3_REPORT.md` 的 7713855 HEAD 是历史 snapshot；当前 240fa3c docs commit/其合法 docs descendant 不构成冲突
+- 当前用户主动删除的 M1/M2 临时 JSON 只记录为 pre-existing user cleanup，不 restore、不混入 M3 commit
 - fixed checkpoint SHA 7192719323a073ba2b6b19b62cb7d46ef4aa90ecc8c4ae6baf27ad0c51566a84
 - baseline 1.127171768 roots/s
 - 227.117 s / 256 roots
@@ -427,6 +477,8 @@ FAIL = 无法保持 evaluator/Search semantics 或 frozen regression。
 - 本轮 exact performance only / no M4/M5
 
 然后严格按：
-P0 official-Python full regression -> WIP baseline commit -> P1 evaluator decomposition -> P2 C++ tuple evaluator -> P3 differential -> P4 primitive A/B -> P5 exact Search A/B -> evidence-driven P6 only if needed -> final gate -> STOP / resume normal M3。
+P0 official-Python full regression -> WIP baseline commit -> P1 evaluator decomposition -> P2 C++ tuple evaluator -> P3 differential -> P4 primitive A/B -> P5 exact Search A/B -> evidence-driven P6 only if needed -> final Search gate -> full pytest / CI -> STOP / resume normal M3。
+
+若当前 artifacts 已证明 P6 后为 `6.32041862937058 roots/s`、`projected_8192_seconds = 1296.1166784004308`、911 legal action values bit-identical、best-action disagreement=0、node counts equal，则这是合法恢复点：直接进入报告收口 / full pytest / CI，不得重跑 P0–P6。
 
 不得跳步。
