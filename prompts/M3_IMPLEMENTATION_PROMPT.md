@@ -264,38 +264,234 @@ STOP
 
 ---
 
-# 4. checkpoint 保护规则
+# 4. checkpoint 本地物化与保护规则
 
-checkpoint 永远只读。
-
-第一步必须记录并验证：
+上游 source snapshot 永远只读：
 
 ```text
-absolute path
-file name
-file size
-SHA256
-mtime
-format / container type
+D:\CodexTasks\2048-ai\oneclick-m6-report\snapshots\COMPARATOR\ep4800000_7192719323a0.bin
 ```
 
-其中 SHA256 必须精确等于：
+M3 不允许长期直接依赖另一个训练项目的运行目录。
+
+因此 M3 Agent 开工时必须把已经冻结并校验过的 source snapshot
+做一次**字节级只读复制**到本项目自己的本地 checkpoint 区。
+
+固定本项目结构：
+
+```text
+D:\CodexTasks\NN-2048-ai
+│
+├─ teacher_checkpoints/
+│  ├─ README.md
+│  ├─ manifest.json
+│  │
+│  └─ m3/
+│     └─ ordinary_td_comparator_ep4800000_7192719323a0.bin
+│
+└─ artifacts/
+   └─ m3/
+```
+
+正式 M3 runtime checkpoint 固定为：
+
+```text
+D:\CodexTasks\NN-2048-ai\teacher_checkpoints\m3\ordinary_td_comparator_ep4800000_7192719323a0.bin
+```
+
+## 4.1 物化顺序固定
+
+必须严格按以下顺序：
+
+```text
+1. 验证 upstream source snapshot 存在
+2. 计算 upstream SHA256
+3. upstream SHA 必须等于固定 expected SHA
+4. 创建 teacher_checkpoints/m3/
+5. 创建/更新 teacher_checkpoints/README.md
+6. 创建/更新 teacher_checkpoints/manifest.json
+7. 在 .gitignore 中加入 binary ignore 规则
+8. 将 upstream snapshot 复制到固定 local path
+9. 重新计算 local copy SHA256
+10. 比较 source size / local size
+11. local SHA 必须与 source SHA、expected SHA 三者完全一致
+12. 验证 local .bin 被 Git ignore
+13. 从此 M3 runtime 只读取 local copy
+```
+
+expected SHA256：
 
 ```text
 7192719323a073ba2b6b19b62cb7d46ef4aa90ecc8c4ae6baf27ad0c51566a84
 ```
 
-不得：
-- overwrite
-- convert in place
-- rename
-- move
-- normalize weights in place
-- 重新保存覆盖原文件
+禁止：
 
-如需派生缓存，只能放项目自己的：
-`artifacts/m3/`
-或等价新目录，并记录来源 SHA256。
+```text
+move
+rename upstream
+overwrite upstream
+convert upstream in place
+normalize weights in place
+hardlink / junction / symlink 代替独立副本
+fallback 到 latest.bin
+```
+
+要求是真正的独立文件副本。
+
+## 4.2 destination 已存在时
+
+如果 local destination 已存在：
+
+先计算 SHA256。
+
+如果：
+
+```text
+local SHA == expected SHA
+```
+
+则：
+
+```text
+复用现有 local copy
+不得重复覆盖
+```
+
+如果：
+
+```text
+local SHA != expected SHA
+```
+
+则：
+
+```text
+BLOCKED_LOCAL_CHECKPOINT_MISMATCH
+STOP
+```
+
+不得自动删除、覆盖或“修复”现有文件。
+
+## 4.3 Git 跟踪规则
+
+真实 `.bin` checkpoint：
+
+```text
+必须存在于项目目录
+但必须保持 Git ignored / untracked
+```
+
+`.gitignore` 至少加入：
+
+```gitignore
+# Local external Teacher checkpoints
+teacher_checkpoints/**/*.bin
+```
+
+必须实际验证：
+
+```text
+git check-ignore -v teacher_checkpoints/m3/ordinary_td_comparator_ep4800000_7192719323a0.bin
+```
+
+且 `git status --short` 中不得出现该 `.bin`。
+
+允许并要求提交 Git 的只有：
+
+```text
+teacher_checkpoints/README.md
+teacher_checkpoints/manifest.json
+.gitignore 的对应规则
+```
+
+## 4.4 manifest.json 固定最小字段
+
+`teacher_checkpoints/manifest.json` 至少必须保存：
+
+```json
+{
+  "m3_teacher_baseline": {
+    "relative_path": "m3/ordinary_td_comparator_ep4800000_7192719323a0.bin",
+    "sha256": "7192719323a073ba2b6b19b62cb7d46ef4aa90ecc8c4ae6baf27ad0c51566a84",
+    "episode": 4800000,
+    "format": "U2048NT6",
+    "format_version": 2,
+    "feature_schema": "4bit_exponent_6tuple",
+    "algorithm": "afterstate_td0",
+    "role": "M3 frozen teacher baseline",
+    "source_snapshot": "D:\\CodexTasks\\2048-ai\\oneclick-m6-report\\snapshots\\COMPARATOR\\ep4800000_7192719323a0.bin",
+    "source_run": "D:\\CodexTasks\\2048-ai\\runs\\20260916T182634Z_m6-ordinary-td-comparator-seed1"
+  }
+}
+```
+
+允许增加 provenance 字段，
+不得删除上面的核心身份字段。
+
+## 4.5 README.md 必须说明
+
+至少说明：
+
+- binary checkpoint 不进 Git；
+- 固定文件名；
+- 固定 SHA256；
+- M3 为什么固定这一版；
+- 如何验证 SHA；
+- 上游 source snapshot 只用于 provenance / initial copy；
+- M3 runtime 只读本地副本；
+- 后续 Teacher promotion 不得覆盖 M3 baseline。
+
+## 4.6 运行时路径规则
+
+完成本地物化以后：
+
+所有 M3：
+
+```text
+loader
+search
+calibration
+dataset generation
+student sanity
+profiling
+```
+
+默认 checkpoint path 一律使用：
+
+```text
+teacher_checkpoints/m3/ordinary_td_comparator_ep4800000_7192719323a0.bin
+```
+
+不得继续把上游 `D:\CodexTasks\2048-ai\...` 路径作为日常运行依赖。
+
+上游路径只保留在 manifest / report 里作为 provenance。
+
+## 4.7 派生产物目录
+
+任何：
+
+```text
+index cache
+converted read-only cache
+profile output
+teacher dataset
+calibration output
+```
+
+必须放：
+
+```text
+artifacts/m3/
+```
+
+或施工单明确允许的新 M3 artifact 路径。
+
+不得写回：
+
+```text
+teacher_checkpoints/m3/*.bin
+```
 
 ---
 
@@ -916,9 +1112,14 @@ M3 不允许：
 
 # 28. 建议文件边界
 
-允许新增：
+M3 Agent 允许新增/修改：
 
 ```text
+.gitignore
+
+teacher_checkpoints/README.md
+teacher_checkpoints/manifest.json
+
 src/game2048/m3_tuple_teacher.py
 src/game2048/m3_search.py
 src/game2048/m3_teacher_data.py
@@ -935,6 +1136,12 @@ M3_REPORT.md
 m3_teacher_semantics.json
 m3_teacher_profile.json
 m3_student_sanity.json
+```
+
+本地还必须创建但绝对不得 Git 跟踪：
+
+```text
+teacher_checkpoints/m3/ordinary_td_comparator_ep4800000_7192719323a0.bin
 ```
 
 实际 checkpoint 格式若要求一个极小 adapter 文件，
@@ -963,22 +1170,62 @@ checkpoint-dependent tests：
 
 ---
 
-# 30. checkpoint 大文件禁止 commit
+# 30. checkpoint 本地保存但禁止 commit
 
-用户真实 tuple checkpoint：
-- 不得 git add
-- 不得 commit
-- 不得上传 GitHub
-- 不得复制到 repo tracked path
+本阶段规则不是“checkpoint 不得复制进 repo”。
 
-如需要路径配置，
-用命令行参数或环境变量：
+正确规则是：
 
 ```text
---checkpoint <absolute-path>
+必须复制进本项目工作目录
++
+必须被 .gitignore 排除
++
+绝对不得进入 Git object history
 ```
 
-不得硬编码用户本机绝对路径进 source。
+正式 local path：
+
+```text
+teacher_checkpoints/m3/ordinary_td_comparator_ep4800000_7192719323a0.bin
+```
+
+禁止：
+
+- `git add -f` checkpoint；
+- commit checkpoint；
+- Git LFS 上传 checkpoint；
+- GitHub Release 上传 checkpoint；
+- 把 checkpoint 转成源码数组后 commit；
+- 把 512 MiB binary 塞进任何 tracked archive；
+- 覆盖 M3 frozen baseline；
+- 把 `latest.bin` 复制到这个文件名冒充固定 baseline。
+
+允许提交：
+
+```text
+teacher_checkpoints/README.md
+teacher_checkpoints/manifest.json
+.gitignore
+```
+
+source code 不得硬编码用户上游绝对路径。
+
+正式 runtime 应从 repo root 解析：
+
+```text
+teacher_checkpoints/m3/ordinary_td_comparator_ep4800000_7192719323a0.bin
+```
+
+CLI 仍允许显式：
+
+```text
+--checkpoint <path>
+```
+
+但 M3 正式运行必须记录实际 resolved path 与 SHA256。
+
+CI 不得要求真实 512 MiB checkpoint。
 
 ---
 
@@ -1112,34 +1359,70 @@ STOP。
 
 # 35. 开工第一句话
 
-先复述并验证固定 baseline：
+先复述固定 provenance 与目标 local copy：
 
-- exact snapshot path：`D:\CodexTasks\2048-ai\oneclick-m6-report\snapshots\COMPARATOR\ep4800000_7192719323a0.bin`
-- expected SHA256：`7192719323a073ba2b6b19b62cb7d46ef4aa90ecc8c4ae6baf27ad0c51566a84`
+```text
+upstream source snapshot:
+D:\CodexTasks\2048-ai\oneclick-m6-report\snapshots\COMPARATOR\ep4800000_7192719323a0.bin
+
+expected SHA256:
+7192719323a073ba2b6b19b62cb7d46ef4aa90ecc8c4ae6baf27ad0c51566a84
+
+target local checkpoint:
+D:\CodexTasks\NN-2048-ai\teacher_checkpoints\m3\ordinary_td_comparator_ep4800000_7192719323a0.bin
+```
+
+同时复述：
+
 - current HEAD / origin-main
 - M0/M1/M2 authoritative tags
 - 本轮只做 M3 Teacher 小规模验证
 - M3 不追 `latest.bin`
+- 二进制必须复制进项目，但必须 Git ignored
 
-然后：
+然后严格执行：
 
-1. 验证 M2 closeout commit `4139b3b3c9c11216e7048bad46147e2fc5cc4e92` 是当前 HEAD 的祖先；
-2. 验证固定 snapshot 存在；
-3. 重新计算 snapshot SHA256；
-4. 只有 SHA 精确匹配才开始 P0-style repository verification / checkpoint format gate。
+```text
+A. repository / frozen-tag verification
+B. upstream source snapshot existence check
+C. upstream SHA256 verification
+D. teacher_checkpoints/ structure creation
+E. README.md / manifest.json / .gitignore preparation
+F. byte-for-byte local copy
+G. local SHA256 + size re-verification
+H. git check-ignore verification
+I. local-copy-only checkpoint format gate
+J. 后续 M3 correctness / semantics / search / dataset / student sanity / profiling
+```
 
-若 snapshot 缺失：
+若 upstream source 缺失：
 
 ```text
 BLOCKED_CHECKPOINT_PATH
 STOP
 ```
 
-若 SHA 不匹配：
+若 upstream SHA 不匹配：
 
 ```text
 BLOCKED_CHECKPOINT_MISMATCH
 STOP
 ```
 
-禁止 fallback 到 `latest.bin`、FORMAL checkpoint 或任何其他权重。
+若已存在 local copy 但 SHA 不匹配：
+
+```text
+BLOCKED_LOCAL_CHECKPOINT_MISMATCH
+STOP
+```
+
+禁止 fallback 到：
+
+```text
+latest.bin
+FORMAL checkpoint
+其他 episode
+其他 tuple model
+```
+
+不得在这三个 blocker 情况下继续。
