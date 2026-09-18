@@ -114,10 +114,13 @@ def test_reset_zeroes_the_scores():
 
         [1, 1, 0, 0] / [0, 0, 0, 0] / [0, 0, 0, 0] / [0, 0, 0, 0]
 
-    through the (read-only) ``boards`` view.  ``LEFT`` then merges the two
-    exponent-1 tiles into one exponent-2 tile and pays exactly ``2 ** 2 == 4``.
-    A random initial board could not be used here: two freshly spawned tiles often
-    do not merge at all, so the pre-reset score would be unreliable.
+    Because the public ``env.boards`` is a read-only live view (assigning through
+    it raises), the test writes this fixture straight into the environment's
+    internal ``_boards`` buffer in order to build a deterministic internal state.
+    ``LEFT`` then merges the two exponent-1 tiles into one exponent-2 tile and pays
+    exactly ``2 ** 2 == 4``.  A random initial board could not be used here: two
+    freshly spawned tiles often do not merge at all, so the pre-reset score would
+    be unreliable.
     """
     count = 16
     mergeable = np.array([1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=np.uint8)

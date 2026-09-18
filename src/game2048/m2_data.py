@@ -68,8 +68,11 @@ def prepare_board_batch_for_transfer(boards: np.ndarray) -> np.ndarray:
     Parameters
     ----------
     boards:
-        The batch produced by the environment.  Must be an array-like of shape
-        ``(N, 16)`` with ``N >= 1`` and dtype ``uint8``.
+        The batch produced by the environment.  Must already be a
+        ``numpy.ndarray`` of shape ``(N, 16)`` with ``N >= 1`` and dtype
+        ``uint8``.  Array-like objects that merely *could* be converted to an
+        array are not accepted: this boundary requires the caller to hand over a
+        real array.
 
     Returns
     -------
@@ -83,10 +86,9 @@ def prepare_board_batch_for_transfer(boards: np.ndarray) -> np.ndarray:
     Raises
     ------
     TypeError
-        If ``boards`` is not a ``numpy.ndarray`` (or array-like convertible to
-        one), or if its dtype is not exactly ``uint8``.  A wrong dtype is never
-        silently converted: ``int64``, ``int32``, ``float32``, ``float64`` and
-        ``bool`` are all rejected.
+        If ``boards`` is not a ``numpy.ndarray``, or if its dtype is not exactly
+        ``uint8``.  A wrong dtype is never silently converted: ``int64``,
+        ``int32``, ``float32``, ``float64`` and ``bool`` are all rejected.
 
     ValueError
         If the shape is not ``(N, 16)`` with ``N >= 1``.  A wrong shape is never
