@@ -100,7 +100,7 @@ def main() -> None:
             "critical_sha256": {name: sha256(UPSTREAM / name) for name in SOURCE_FILES},
         },
     }
-    (ROOT / "m3_teacher_semantics.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+    (ROOT / "reports/m3/m3_teacher_semantics.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     print(json.dumps(report, indent=2))
 
 if __name__ == "__main__":

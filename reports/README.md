@@ -1,15 +1,17 @@
 # Milestone Reports
 
-This directory is the committed report/compact-summary home for **M4 and later** milestones.
+This directory is the committed report/compact-summary home for all milestones on the current branch.
 
-Layout rule:
-- `reports/`: Git-tracked milestone reports and compact summaries.
+Canonical layout:
+- `reports/m0/`: M0 report.
+- `reports/m1/`: M1 report.
+- `reports/m2/`: M2 report and committed compact benchmark/correctness summaries.
+- `reports/m3/`: M3 candidate/audit reports and committed compact Teacher/Search summaries.
+- `reports/m4/` and later: the same pattern for future milestones.
 - `artifacts/mN/`: raw, large, intermediate, checkpoint and per-game/per-run artifacts; local-only by default.
 - `prompts/`: implementation work orders.
 - `docs/`: specifications and engineering documentation.
 
-M0-M3 predate this layout. Their root-level reports and selected compact JSON files are frozen legacy paths and are intentionally not moved, because historical benchmark scripts and reports reference those exact locations.
+The repository root must not contain milestone reports or milestone result JSON files.
 
-Selected obsolete M1/M2 scratch benchmark/sanity JSON files were pruned from the current branch during post-M3 repository cleanup. Their historical contents remain available from the frozen milestone tags/commits.
-
-From M4 onward, do not add new milestone result JSON or `M*_REPORT.md` files to the repository root.
+Historical frozen tags still preserve the old pre-cleanup paths exactly. The current branch intentionally uses this unified layout and updates current scripts/prompts to the canonical paths above.

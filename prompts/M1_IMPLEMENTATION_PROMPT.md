@@ -51,7 +51,7 @@
 2. 给出 M0 实际结果；
 3. 给出冻结规则要求的结果；
 4. 证明二者确实矛盾；
-5. 在 `M1_REPORT.md` 中标记 `M0_BLOCKER`；
+5. 在 `reports/m1/M1_REPORT.md` 中标记 `M0_BLOCKER`；
 6. 停止该问题相关工作。
 
 除此以外：
@@ -92,7 +92,7 @@ tests/test_m0_high_tiles.py
 tests/test_m0_env_api.py
 
 docs/M0_ENVIRONMENT_SPEC.md
-M0_REPORT.md
+reports/m0/M0_REPORT.md
 ```
 
 除非用户之后明确授权修 M0，否则：
@@ -229,7 +229,7 @@ M1 首先需要建立：
 
 如果 profiling 显示存在明确的 Python / NumPy 热点，
 
-只在 `M1_REPORT.md` 中记录：
+只在 `reports/m1/M1_REPORT.md` 中记录：
 
 ``` text
 C++ migration recommended: YES/NO
@@ -263,7 +263,7 @@ benchmarks/benchmark_m1_env.py
 benchmarks/profile_m1_env.py
 
 docs/M1_FAST_ENV_SPEC.md
-M1_REPORT.md
+reports/m1/M1_REPORT.md
 ```
 
 允许为了 benchmark 增加少量：
@@ -1955,7 +1955,7 @@ cProfile
 
 但：
 
-最终 `M1_REPORT.md`
+最终 `reports/m1/M1_REPORT.md`
 
 必须给出：
 
@@ -2447,7 +2447,7 @@ M1 才能标记：
 30. 当前主要 bottleneck 已识别；
 31. C++ migration decision 已写明；
 32. `docs/M1_FAST_ENV_SPEC.md` 已生成；
-33. `M1_REPORT.md` 已生成；
+33. `reports/m1/M1_REPORT.md` 已生成；
 34. `python -m pytest` 全绿；
 35. M2 尚未开始。
 
@@ -2669,7 +2669,7 @@ wall-clock profiling。
 
 和：
 
-`M1_REPORT.md`
+`reports/m1/M1_REPORT.md`
 
 ### Step 18
 

@@ -24,7 +24,7 @@ from benchmark_m2_pipeline_tuning import (
 
 SEED = 20260918
 DEVICE = torch.device("cuda")
-CLOSED_LOOP = ROOT / "m2_closed_loop_benchmark.json"
+CLOSED_LOOP = ROOT / "reports/m2/m2_closed_loop_benchmark.json"
 OUT = ROOT / "m2_python_final_ab.json"
 
 

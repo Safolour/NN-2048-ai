@@ -1,6 +1,6 @@
 """Same-machine A/B comparison of the *old* per-board M1 path and the new one.
 
-The M1 movement kernel was rewritten (see ``M1_REPORT.md`` section R).  The old
+The M1 movement kernel was rewritten (see ``reports/m1/M1_REPORT.md`` section R).  The old
 code was a working-tree-only draft and cannot be restored from git without
 rewriting history, which the task explicitly forbids.  What *is* fully
 recoverable, and is the honest thing to measure, is the per-board reference route

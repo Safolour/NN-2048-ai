@@ -1015,7 +1015,7 @@ tests/
 docs/
   M0_ENVIRONMENT_SPEC.md
 
-M0_REPORT.md
+reports/m0/M0_REPORT.md
 ```
 
 不要在 M0 创建：
@@ -1057,12 +1057,12 @@ self_play.py
 
 ---
 
-# 25. M0_REPORT.md
+# 25. reports/m0/M0_REPORT.md
 
 完成以后生成：
 
 ```text
-M0_REPORT.md
+reports/m0/M0_REPORT.md
 ```
 
 里面必须包含：
@@ -1181,7 +1181,7 @@ M0 只有同时满足以下条件才算完成：
 [ ] 输入 board 不被纯函数修改
 [ ] 全部 pytest 通过
 [ ] M0_ENVIRONMENT_SPEC.md 已生成
-[ ] M0_REPORT.md 已生成
+[ ] reports/m0/M0_REPORT.md 已生成
 ```
 
 只要其中任何一项失败：
@@ -1211,7 +1211,7 @@ M0 只有同时满足以下条件才算完成：
 5. 如果测试失败，定位并修复；
 6. 重复运行直到全部通过，或者出现无法继续的真实外部阻塞；
 7. 生成 `M0_ENVIRONMENT_SPEC.md`；
-8. 生成 `M0_REPORT.md`；
+8. 生成 `reports/m0/M0_REPORT.md`；
 9. 最后向我汇报实际测试结果。
 
 不要因为第一次 pytest 通过就跳过其他验收检查。

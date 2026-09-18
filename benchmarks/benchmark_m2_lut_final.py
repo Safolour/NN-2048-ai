@@ -30,8 +30,8 @@ from game2048.m2_rollout_env import M2RolloutBatchEnv
 SEED = 20260919
 SIZES = (1024, 4096, 8192, 16384)
 SCALAR = ROOT / "m2_fast_backend_scalar_benchmark.json"
-OLD_CLOSED_LOOP = ROOT / "m2_closed_loop_benchmark.json"
-OUT = ROOT / "m2_fast_backend_benchmark.json"
+OLD_CLOSED_LOOP = ROOT / "reports/m2/m2_closed_loop_benchmark.json"
+OUT = ROOT / "reports/m2/m2_fast_backend_benchmark.json"
 
 
 def scalar_closed_loop_by_size(scalar: dict) -> dict[int, dict]:

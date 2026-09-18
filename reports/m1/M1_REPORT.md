@@ -46,7 +46,7 @@ M1 的唯一目标——在冻结的 M0 Reference Environment 之上建立**可�
 | `benchmarks/profile_m1_env.py` | wall-clock profiler（+ 可选 `cProfile`） |
 | `benchmarks/benchmark_ab_vectorization.py` | **同机 A/B**：old per-board 路线 vs new 向量化路线（§R.5） |
 | `docs/M1_FAST_ENV_SPEC.md` | M1 权威规格（§3.5 为向量化实现说明） |
-| `M1_REPORT.md` | 本文件 |
+| `reports/m1/M1_REPORT.md` | 本文件 |
 | `benchmark_results.json` | 向量化修复后 benchmark 原始结果 |
 | `baseline_before_vectorization.json` | 向量化修复前同机 baseline 原始结果（A/B 的 OLD 侧） |
 | `ab_vectorization.json` | 同机 A/B benchmark 原始结果 |
@@ -80,7 +80,7 @@ $ git diff --stat HEAD -- \
     src/game2048/__init__.py \
     tests/test_m0_moves.py tests/test_m0_spawn.py tests/test_m0_legal_terminal.py \
     tests/test_m0_d4.py tests/test_m0_properties.py tests/test_m0_high_tiles.py \
-    tests/test_m0_env_api.py docs/M0_ENVIRONMENT_SPEC.md M0_REPORT.md
+    tests/test_m0_env_api.py docs/M0_ENVIRONMENT_SPEC.md reports/m0/M0_REPORT.md
 (无输出)
 ```
 
@@ -623,7 +623,7 @@ C++ migration recommended: DEFER_TO_M2
 | 30 | 当前主要 bottleneck 已识别 | **PASS** | movement 内核的 NumPy 调用开销 + 内存带宽（§M） |
 | 31 | C++ migration decision 已写明 | **PASS** | `DEFER_TO_M2`（§N） |
 | 32 | `docs/M1_FAST_ENV_SPEC.md` 已生成 | **PASS** | 见文件；§3.5 已更新为向量化实现说明 |
-| 33 | `M1_REPORT.md` 已生成 | **PASS** | 本文件 |
+| 33 | `reports/m1/M1_REPORT.md` 已生成 | **PASS** | 本文件 |
 | 34 | `python -m pytest` 全绿 | **PASS** | 432 passed（261 M0 + 161 M1 + 10，0 skip / 0 xfail） |
 | 35 | M2 尚未开始 | **PASS** | 无 network/trainer/replay/self-play/teacher/expectimax/search 代码；未加载 tuple checkpoint |
 | **36** | **movement hot path 无 N-dependent Python 循环** | **PASS** | §R.2 / §R.3 字段 `N-dependent Python movement loop: NONE`；§R.4 的 4 类回归测试钉死 |

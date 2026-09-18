@@ -263,7 +263,7 @@ tests/test_m0_high_tiles.py
 tests/test_m0_env_api.py
 
 docs/M0_ENVIRONMENT_SPEC.md
-M0_REPORT.md
+reports/m0/M0_REPORT.md
 ```
 
 M0 仍然是：
@@ -371,7 +371,7 @@ force push。
 src/game2048/fast_env.py
 tests/test_m1_high_tiles.py
 docs/M1_FAST_ENV_SPEC.md
-M1_REPORT.md
+reports/m1/M1_REPORT.md
 ```
 
 如果确实需要：
@@ -1386,7 +1386,7 @@ benchmark_results.json
 ab_vectorization.json
 ```
 
-但 `M1_REPORT.md`
+但 `reports/m1/M1_REPORT.md`
 
 不得继续把旧/新 env sweep 描述成：
 
@@ -1438,7 +1438,7 @@ M0 scalar per-board route
 
 “精确恢复旧 M1”。
 
-`M1_REPORT.md`
+`reports/m1/M1_REPORT.md`
 
 也必须保持同样措辞。
 
@@ -1550,7 +1550,7 @@ checked overflow protection
 
 在：
 
-`M1_REPORT.md`
+`reports/m1/M1_REPORT.md`
 
 新增：
 
@@ -1739,7 +1739,7 @@ e >= 62 的 pair 禁止 merge
 git add src/game2048/fast_env.py
 git add tests/
 git add docs/M1_FAST_ENV_SPEC.md
-git add M1_REPORT.md
+git add reports/m1/M1_REPORT.md
 ```
 
 检查：
@@ -1861,7 +1861,7 @@ M1 = FINAL PASS
 
 [ ] fast_env.py overflow 文档已纠正
 [ ] M1_FAST_ENV_SPEC.md 已纠正
-[ ] M1_REPORT.md 已新增 §S
+[ ] reports/m1/M1_REPORT.md 已新增 §S
 [ ] “只有三块 buffer”错误描述已纠正
 [ ] benchmark workload 描述已纠正
 
@@ -1938,7 +1938,7 @@ difference:
 9. Documentation corrections
 fast_env.py:
 M1_FAST_ENV_SPEC.md:
-M1_REPORT.md:
+reports/m1/M1_REPORT.md:
 
 10. Git
 new commit:

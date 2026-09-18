@@ -265,7 +265,7 @@ tests\test_m0_spawn.py ........................                          [100%]
 | 26 | 输入 board 不被纯函数修改 | PASS | 6 个专项测试 + 2,000 盘面总扫 |
 | 27 | 全部 pytest 通过 | PASS | 261 passed / 0 failed |
 | 28 | `M0_ENVIRONMENT_SPEC.md` 已生成 | PASS | `docs/M0_ENVIRONMENT_SPEC.md` |
-| 29 | `M0_REPORT.md` 已生成 | PASS | 本文件 |
+| 29 | `reports/m0/M0_REPORT.md` 已生成 | PASS | 本文件 |
 
 ---
 

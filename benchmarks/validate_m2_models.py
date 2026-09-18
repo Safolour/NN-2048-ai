@@ -20,7 +20,7 @@ from game2048.m2_models import (
 
 SEED = 20260918
 DEVICE = torch.device("cuda")
-OUTPUT = ROOT / "m2_correctness.json"
+OUTPUT = ROOT / "reports/m2/m2_correctness.json"
 
 
 def make_boards(seed: int) -> tuple[torch.Tensor, torch.Tensor]:

@@ -165,7 +165,7 @@ tests/test_m0_high_tiles.py
 tests/test_m0_env_api.py
 
 docs/M0_ENVIRONMENT_SPEC.md
-M0_REPORT.md
+reports/m0/M0_REPORT.md
 ```
 
 M0 仍然是：
@@ -205,7 +205,7 @@ benchmarks/profile_m1_env.py
 benchmarks/_utils.py
 
 docs/M1_FAST_ENV_SPEC.md
-M1_REPORT.md
+reports/m1/M1_REPORT.md
 ```
 
 只有为了：
@@ -1243,7 +1243,7 @@ for row in rows
 
 在：
 
-`M1_REPORT.md`
+`reports/m1/M1_REPORT.md`
 
 明确写：
 
@@ -2093,7 +2093,7 @@ wall-clock profiling + cProfile。
 
 更新：
 
-`M1_REPORT.md`
+`reports/m1/M1_REPORT.md`
 
 ### Step 26
 
@@ -2188,7 +2188,7 @@ M0 frozen files：
 [ ] 未修改 M0 frozen files
 
 [ ] M1_FAST_ENV_SPEC.md 已更新
-[ ] M1_REPORT.md 已更新
+[ ] reports/m1/M1_REPORT.md 已更新
 ```
 
 其中任何：
@@ -2227,7 +2227,7 @@ PASS。
 
 ---
 
-# 45. M1_REPORT.md 必须修改最终结论
+# 45. reports/m1/M1_REPORT.md 必须修改最终结论
 
 原报告中：
 

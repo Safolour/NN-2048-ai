@@ -15,7 +15,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from game2048.m2_rollout_env import M2RolloutBatchEnv
 
-SOURCE = ROOT / "m2_fast_backend_benchmark.json"
+SOURCE = ROOT / "reports/m2/m2_fast_backend_benchmark.json"
 OUT = ROOT / "m2_post_cpp_hotspots.json"
 N = 16384
 SEED = 20260919 + 40000

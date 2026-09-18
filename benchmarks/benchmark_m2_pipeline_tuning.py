@@ -21,7 +21,7 @@ from game2048.m2_policy import select_greedy_actions
 
 SEED = 20260918
 DEVICE = torch.device("cuda")
-CLOSED_LOOP = ROOT / "m2_closed_loop_benchmark.json"
+CLOSED_LOOP = ROOT / "reports/m2/m2_closed_loop_benchmark.json"
 
 class ThreadedRunner:
     def __init__(self, total: int, workers: int) -> None:

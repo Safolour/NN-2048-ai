@@ -20,8 +20,8 @@ from game2048.m2_data import prepare_board_batch_for_transfer
 from game2048.m2_models import ResidualMLP2048, Transformer2048
 from game2048.m2_policy import select_greedy_actions
 
-GPU_RESULTS = ROOT / "m2_gpu_benchmark.json"
-OUTPUT = ROOT / "m2_closed_loop_benchmark.json"
+GPU_RESULTS = ROOT / "reports/m2/m2_gpu_benchmark.json"
+OUTPUT = ROOT / "reports/m2/m2_closed_loop_benchmark.json"
 DEVICE = torch.device("cuda")
 SEED = 20260918
 MODELS = {"Transformer2048": Transformer2048, "ResidualMLP2048": ResidualMLP2048}
@@ -172,7 +172,7 @@ def profile_point(model_cls, config: dict, env_count: int, iterations: int = 30)
     }
 def main() -> int:
     if not GPU_RESULTS.exists():
-        write_json(OUTPUT, {"pass": False, "reason": "m2_gpu_benchmark.json missing"})
+        write_json(OUTPUT, {"pass": False, "reason": "reports/m2/m2_gpu_benchmark.json missing"})
         return 2
     gpu_results = json.loads(GPU_RESULTS.read_text(encoding="utf-8"))
     payload = {"models": {}, "pass": True}

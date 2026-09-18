@@ -2,7 +2,7 @@
 
 > 本文件是 **M1 Fast Environment 的权威规格**。
 > 它描述的实现位于 `src/game2048/fast_env.py`，其唯一正确性来源是
-> **永久冻结的 M0 Reference Environment**（`M0_REPORT.md`、`docs/M0_ENVIRONMENT_SPEC.md`、git tag `m0-reference-pass`）。
+> **永久冻结的 M0 Reference Environment**（`reports/m0/M0_REPORT.md`、`docs/M0_ENVIRONMENT_SPEC.md`、git tag `m0-reference-pass`）。
 > 二者冲突时，**M1 是错的一方**。
 
 ---
@@ -185,7 +185,7 @@ reshape 成 `(R, 4)`（`R = group_size × 4`，dtype `uint8`，C-contiguous）�
 **为什么不需要记忆化。** `_LINE_CACHE` / `_merge_line_cached` / `_shift_line` /
 `_line_changed` 这套 per-line 记忆化实现已在向量化重写中**删除**：它们正是
 N-dependent Python 循环的来源。删除后正确性由 differential test 重新验证
-（0 mismatch），性能反而提升数倍（见 `M1_REPORT.md` §R）。
+（0 mismatch），性能反而提升数倍（见 `reports/m1/M1_REPORT.md` §R）。
 
 ---
 
@@ -744,5 +744,5 @@ M1 到此为止。以下**不属于** M1，也不得在 M1 中开始：
 M1 交付的是：**与 M0 逐 bit 一致的高速批量状态生产者**，以及它的
 differential test、scalability benchmark、profiler 与瓶颈结论。
 
-关于是否迁移 C++：M1 **只记录结论**（见 `M1_REPORT.md` §N），
+关于是否迁移 C++：M1 **只记录结论**（见 `reports/m1/M1_REPORT.md` §N），
 不自行启动重写。

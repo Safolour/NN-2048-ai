@@ -13,7 +13,7 @@ an explicit ``OverflowError`` -- never a silently wrapped number.
 This file pins the *single-merge* side of that boundary.  The **aggregate** side
 (several individually representable merges summing past ``INT64_MAX`` within one
 row or one board, plus ``step`` atomicity) lives in
-``tests/test_m1_reward_overflow.py``; see ``M1_REPORT.md`` §S.
+``tests/test_m1_reward_overflow.py``; see ``reports/m1/M1_REPORT.md`` §S.
 """
 
 from __future__ import annotations

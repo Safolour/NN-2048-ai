@@ -154,7 +154,7 @@ tests/test_m0_high_tiles.py
 tests/test_m0_env_api.py
 
 docs/M0_ENVIRONMENT_SPEC.md
-M0_REPORT.md
+reports/m0/M0_REPORT.md
 ```
 
 禁止移动：
@@ -339,7 +339,7 @@ OverflowError
 必须把 reproduction 记录进：
 
 ```text
-M1_REPORT.md
+reports/m1/M1_REPORT.md
 ```
 
 ---
@@ -1584,7 +1584,7 @@ tests/test_m1_legal_terminal.py
 tests/test_m1_vectorization.py
 
 docs/M1_FAST_ENV_SPEC.md
-M1_REPORT.md
+reports/m1/M1_REPORT.md
 ```
 
 不必每个都修改。

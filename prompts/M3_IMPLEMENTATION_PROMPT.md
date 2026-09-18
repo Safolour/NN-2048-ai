@@ -1172,10 +1172,10 @@ benchmarks/benchmark_m3_teacher_search.py
 benchmarks/validate_m3_teacher_semantics.py
 benchmarks/validate_m3_student_sanity.py
 
-M3_REPORT.md
-m3_teacher_semantics.json
-m3_teacher_profile.json
-m3_student_sanity.json
+reports/m3/M3_REPORT.md
+reports/m3/m3_teacher_semantics.json
+reports/m3/m3_teacher_profile.json
+reports/m3/m3_student_sanity.json
 ```
 
 本地还必须创建但绝对不得 Git 跟踪：

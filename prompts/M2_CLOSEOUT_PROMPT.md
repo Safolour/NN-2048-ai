@@ -128,7 +128,7 @@ prompts/2048_AI_正式执行计划_M0_M1冻结_CI增强版_2026-09-18.md
 - cpp/
 - tests/
 - benchmarks/
-- M2_REPORT.md
+- reports/m2/M2_REPORT.md
 - benchmark JSON
 - .github/workflows/ci.yml
 - docs/M2_FAST_BACKEND_BUILD.md

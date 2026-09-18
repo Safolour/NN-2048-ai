@@ -14,13 +14,13 @@
 1. prompts/2048_AI_正式执行计划_M0_M1冻结_CI增强版_2026-09-18.md
 2. prompts/M3_IMPLEMENTATION_PROMPT.md
 3. 本文件
-4. M3_REPORT.md
-5. m3_teacher_profile.json
-6. m3_teacher_semantics.json
+4. reports/m3/M3_REPORT.md
+5. reports/m3/m3_teacher_profile.json
+6. reports/m3/m3_teacher_semantics.json
 
 若真实冲突：STOP；报告冲突；不得自行裁决。
 
-注意：`M3_REPORT.md` 中的开工 HEAD `7713855d442f7db60ae8582a8b8feb9561c39978` 是生成该报告时的历史快照；本施工单发布后的正式 `main/origin/main` 已前进到纯 docs commit `240fa3c8b3fcf3fa497d9f11c2aea262d31b46d6`。首次开工时，只要当前 HEAD 是该 commit 或其不修改 frozen/M3 implementation semantics 的纯 docs descendant，这不构成冲突，不得因此 STOP。若本施工单已经执行过并按 P0.2/P2/P6 产生了本任务自己的 WIP/implementation commit，则这些以 `240fa3c8...` 为祖先、且变更范围符合本施工单的后续 commit 也是合法恢复点；不得因为它们不是纯 docs commit 而误 STOP。
+注意：`reports/m3/M3_REPORT.md` 中的开工 HEAD `7713855d442f7db60ae8582a8b8feb9561c39978` 是生成该报告时的历史快照；本施工单发布后的正式 `main/origin/main` 已前进到纯 docs commit `240fa3c8b3fcf3fa497d9f11c2aea262d31b46d6`。首次开工时，只要当前 HEAD 是该 commit 或其不修改 frozen/M3 implementation semantics 的纯 docs descendant，这不构成冲突，不得因此 STOP。若本施工单已经执行过并按 P0.2/P2/P6 产生了本任务自己的 WIP/implementation commit，则这些以 `240fa3c8...` 为祖先、且变更范围符合本施工单的后续 commit 也是合法恢复点；不得因为它们不是纯 docs commit 而误 STOP。
 
 # 1. 冻结基础
 
@@ -289,7 +289,7 @@ A/B 的 player_nodes、chance_nodes、leaf_calls、cache lookups、cache hits �
 
 普通 M3 的 calibration continuation policy 已由 `M3_IMPLEMENTATION_PROMPT.md §18` 明确改为 frozen checkpoint 的原生 `greedy_1ply` policy。Search Unblock 不负责执行该正式 calibration。
 
-断线/恢复时，如果当前 `m3_search_performance_unblock.json` 已包含：
+断线/恢复时，如果当前 `reports/m3/m3_search_performance_unblock.json` 已包含：
 - `p6_m2_cpp_move.variant.root_decisions_per_second >= 5.0`
 - `projected_8192_seconds <= 1800`
 - 256-root legal masks / 911 legal action values bit-identical
@@ -381,8 +381,8 @@ Search A/B 固定同一 256-state corpus、同一 checkpoint、depth=3、cache�
 
 # 35. artifacts
 
-新增：m3_tuple_backend_benchmark.json、m3_search_performance_unblock.json。
-更新：m3_teacher_profile.json、M3_REPORT.md。
+新增：reports/m3/m3_tuple_backend_benchmark.json、reports/m3/m3_search_performance_unblock.json。
+更新：reports/m3/m3_teacher_profile.json、reports/m3/M3_REPORT.md。
 
 必须保留历史 baseline：1.127171768 roots/s、227.117 s/256、86.6% evaluator share。
 
@@ -468,7 +468,7 @@ FAIL = 无法保持 evaluator/Search semantics 或 frozen regression。
 - current HEAD
 - current working tree
 - frozen M0/M1/M2 tag resolutions，必须用 `^{}` 解引用到 commit 后报告；不得报告 annotated-tag object SHA 冒充 commit SHA
-- 当前 `M3_REPORT.md` 的 7713855 HEAD 是历史 snapshot；当前 240fa3c docs commit/其合法 docs descendant 不构成冲突
+- 当前 `reports/m3/M3_REPORT.md` 的 7713855 HEAD 是历史 snapshot；当前 240fa3c docs commit/其合法 docs descendant 不构成冲突
 - 当前用户主动删除的 M1/M2 临时 JSON 只记录为 pre-existing user cleanup，不 restore、不混入 M3 commit
 - fixed checkpoint SHA 7192719323a073ba2b6b19b62cb7d46ef4aa90ecc8c4ae6baf27ad0c51566a84
 - baseline 1.127171768 roots/s

@@ -234,17 +234,17 @@ The provisional candidate commit 52c40dad5908fd4dce46bb15ebde581f1bc6a8d5 was pu
 
 ## 18. FINAL ARTIFACTS
 
-- M2_REPORT.md
-- m2_correctness.json
-- m2_gpu_benchmark.json
-- m2_closed_loop_benchmark.json
+- reports/m2/M2_REPORT.md
+- reports/m2/m2_correctness.json
+- reports/m2/m2_gpu_benchmark.json
+- reports/m2/m2_closed_loop_benchmark.json
 - m2_cpu_hotspots.json
-- m2_fast_backend_benchmark.json
+- reports/m2/m2_fast_backend_benchmark.json
 - m2_fast_backend_scalar_benchmark.json
 - m2_post_cpp_hotspots.json
 - m2_python_final_ab.json
 
-m2_closed_loop_benchmark.json now preserves historical pre-unblock evidence while exposing the final LUT backend as the current ResidualMLP result.
+reports/m2/m2_closed_loop_benchmark.json now preserves historical pre-unblock evidence while exposing the final LUT backend as the current ResidualMLP result.
 
 ## 19. FROZEN / OUT-OF-SCOPE VERIFICATION
 

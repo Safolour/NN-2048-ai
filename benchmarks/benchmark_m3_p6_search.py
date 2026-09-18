@@ -17,7 +17,7 @@ def main():
     corpus=np.load(ROOT/"artifacts"/"m3"/"semantic_profile_states.npz")
     states=np.ascontiguousarray(corpus["states"])
     ref=np.load(ROOT/"artifacts"/"m3"/"search_ab_python_values.npz")["values"]
-    report_path=ROOT/"m3_search_performance_unblock.json"
+    report_path=ROOT/"reports/m3/m3_search_performance_unblock.json"
     report=json.loads(report_path.read_text(encoding="utf-8"))
 
     data, values=run_variant(

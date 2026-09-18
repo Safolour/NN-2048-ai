@@ -24,8 +24,8 @@ from benchmark_m2_fast_backend import (
     profile_cpp,
 )
 
-BENCHMARK = ROOT / "m2_fast_backend_benchmark.json"
-CLOSED_LOOP = ROOT / "m2_closed_loop_benchmark.json"
+BENCHMARK = ROOT / "reports/m2/m2_fast_backend_benchmark.json"
+CLOSED_LOOP = ROOT / "reports/m2/m2_closed_loop_benchmark.json"
 DEVICE = torch.device("cuda")
 
 

@@ -1720,7 +1720,7 @@ Correctness FAIL
 写：
 
 ```text
-m2_correctness.json
+reports/m2/m2_correctness.json
 ```
 
 至少记录：
@@ -1752,7 +1752,7 @@ benchmarks/benchmark_m2_gpu.py
 输出：
 
 ```text
-m2_gpu_benchmark.json
+reports/m2/m2_gpu_benchmark.json
 ```
 
 必须测试两个模型：
@@ -2319,7 +2319,7 @@ benchmarks/benchmark_m2_closed_loop.py
 输出：
 
 ```text
-m2_closed_loop_benchmark.json
+reports/m2/m2_closed_loop_benchmark.json
 ```
 
 必须使用：
@@ -2759,22 +2759,22 @@ GPU starvation gate PASS
 最终至少交付：
 
 ```text
-m2_correctness.json
-m2_gpu_benchmark.json
-m2_closed_loop_benchmark.json
-M2_REPORT.md
+reports/m2/m2_correctness.json
+reports/m2/m2_gpu_benchmark.json
+reports/m2/m2_closed_loop_benchmark.json
+reports/m2/M2_REPORT.md
 ```
 
 不要覆盖 M1：
 
 ```text
-M1_REPORT.md
+reports/m1/M1_REPORT.md
 benchmark_results.json
 ```
 
 ---
 
-# 77. `M2_REPORT.md`
+# 77. `reports/m2/M2_REPORT.md`
 
 必须包含：
 
@@ -2973,10 +2973,10 @@ benchmarks/validate_m2_models.py
 benchmarks/benchmark_m2_gpu.py
 benchmarks/benchmark_m2_closed_loop.py
 
-M2_REPORT.md
-m2_correctness.json
-m2_gpu_benchmark.json
-m2_closed_loop_benchmark.json
+reports/m2/M2_REPORT.md
+reports/m2/m2_correctness.json
+reports/m2/m2_gpu_benchmark.json
+reports/m2/m2_closed_loop_benchmark.json
 ```
 
 根据真实需要可增加：
@@ -3204,7 +3204,7 @@ m1-fastenv-audited-pass
 CPU tests
 benchmark scripts
 benchmark result JSON
-M2_REPORT.md
+reports/m2/M2_REPORT.md
 CI changes
 ```
 
@@ -3598,10 +3598,10 @@ For every optimization:
 
 20. ARTIFACTS
 
-- M2_REPORT.md
-- m2_correctness.json
-- m2_gpu_benchmark.json
-- m2_closed_loop_benchmark.json
+- reports/m2/M2_REPORT.md
+- reports/m2/m2_correctness.json
+- reports/m2/m2_gpu_benchmark.json
+- reports/m2/m2_closed_loop_benchmark.json
 
 
 21. FINAL GIT STATE

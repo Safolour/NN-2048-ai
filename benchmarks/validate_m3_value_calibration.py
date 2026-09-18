@@ -303,7 +303,7 @@ def main():
             )
         report.setdefault("affine_mapping", {})[name] = mapping
 
-    (ROOT / "m3_teacher_calibration.json").write_text(
+    (ROOT / "reports/m3/m3_teacher_calibration.json").write_text(
         json.dumps(report, indent=2), encoding="utf-8"
     )
     progress = ROOT / "artifacts" / "m3" / "m3_calibration_progress.json"

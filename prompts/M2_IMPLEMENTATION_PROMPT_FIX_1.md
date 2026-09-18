@@ -357,10 +357,10 @@ benchmarks/benchmark_m2_gpu.py
 benchmarks/benchmark_m2_closed_loop.py
 benchmarks/benchmark_m2_pipeline_tuning.py
 
-m2_correctness.json
-m2_gpu_benchmark.json
-m2_closed_loop_benchmark.json
-M2_REPORT.md
+reports/m2/m2_correctness.json
+reports/m2/m2_gpu_benchmark.json
+reports/m2/m2_closed_loop_benchmark.json
+reports/m2/M2_REPORT.md
 ```
 
 若 working tree 还有用户自己的 prompt 文件变更：
@@ -2119,22 +2119,22 @@ extension output
 必须更新：
 
 ```text
-M2_REPORT.md
-m2_closed_loop_benchmark.json
-m2_gpu_benchmark.json
+reports/m2/M2_REPORT.md
+reports/m2/m2_closed_loop_benchmark.json
+reports/m2/m2_gpu_benchmark.json
 ```
 
 新增：
 
 ```text
 m2_cpu_hotspots.json
-m2_fast_backend_benchmark.json
+reports/m2/m2_fast_backend_benchmark.json
 ```
 
 如果 C++ = NO：
 
 ```text
-m2_fast_backend_benchmark.json
+reports/m2/m2_fast_backend_benchmark.json
 ```
 
 可不存在，

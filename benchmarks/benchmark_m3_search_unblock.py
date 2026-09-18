@@ -141,7 +141,7 @@ def main():
         / report["historical_baseline"]["root_decisions_per_second"]
     )
     report["projected_8192_seconds"] = 8192 / selected["root_decisions_per_second"]
-    out = ROOT / "m3_search_performance_unblock.json"
+    out = ROOT / "reports/m3/m3_search_performance_unblock.json"
     out.write_text(json.dumps(report, indent=2), encoding="utf-8")
     print(json.dumps(report, indent=2))
 

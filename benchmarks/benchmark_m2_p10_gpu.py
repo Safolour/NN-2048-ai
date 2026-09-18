@@ -19,7 +19,7 @@ from _m2_utils import NvidiaSmiSampler, timed_cuda_loop, write_json
 from benchmark_m2_gpu import inference_point
 from game2048.m2_models import ResidualMLP2048
 
-OUT = ROOT / "m2_gpu_benchmark.json"
+OUT = ROOT / "reports/m2/m2_gpu_benchmark.json"
 DEVICE = torch.device("cuda")
 SEED = 20260918
 

@@ -38,7 +38,7 @@ SOURCE_GAMES = ART / "m3_teacher_source_games_64.json"
 CHUNK_DIR = ART / "teacher_label_chunks"
 PROGRESS = ART / "m3_teacher_generation_progress.json"
 FINAL_NPZ = ART / "m3_teacher_validation_8192.npz"
-FINAL_MANIFEST = ROOT / "m3_teacher_dataset.json"
+FINAL_MANIFEST = ROOT / "reports/m3/m3_teacher_dataset.json"
 ACTIONS = np.arange(4, dtype=np.uint8)
 
 _WORKER_TEACHER = None

@@ -55,7 +55,7 @@ def main():
     pre = json.loads((ROOT / "artifacts" / "m3" / "m3_teacher_profile_pre_batch.json").read_text())
     data["pre_batch_root_decisions_per_second"] = pre["root_decisions_per_second"]
     data["speedup_vs_pre_batch"] = data["root_decisions_per_second"] / pre["root_decisions_per_second"]
-    (ROOT / "m3_teacher_profile.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
+    (ROOT / "reports/m3/m3_teacher_profile.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
     print(json.dumps(data, indent=2))
 
 if __name__ == "__main__":

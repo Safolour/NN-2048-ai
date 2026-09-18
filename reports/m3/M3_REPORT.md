@@ -371,10 +371,10 @@ candidate 收口后再次核验。
 - `benchmarks/validate_m3_value_calibration.py`
 - `benchmarks/generate_m3_teacher_dataset.py`
 - `benchmarks/validate_m3_student_sanity.py`
-- `m3_teacher_calibration.json`
-- `m3_teacher_dataset.json`
-- `m3_student_sanity.json`
-- `M3_REPORT.md`
+- `reports/m3/m3_teacher_calibration.json`
+- `reports/m3/m3_teacher_dataset.json`
+- `reports/m3/m3_student_sanity.json`
+- `reports/m3/M3_REPORT.md`
 
 Search Performance Unblock 已提交的 M3 C++ evaluator / benchmark / profile 文件继续保留。
 

@@ -228,7 +228,7 @@ def main():
         "memory_safety": safety,
         "primitive": primitive,
     }
-    out = ROOT / "m3_tuple_backend_benchmark.json"
+    out = ROOT / "reports/m3/m3_tuple_backend_benchmark.json"
     out.write_text(json.dumps(report, indent=2), encoding="utf-8")
     print(json.dumps({k: v for k, v in report.items() if k != "upstream_anchor"}, indent=2))
 

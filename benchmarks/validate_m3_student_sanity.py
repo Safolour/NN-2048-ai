@@ -27,7 +27,7 @@ from game2048.m2_symmetry import (
 )
 
 DATASET = ROOT / "artifacts" / "m3" / "m3_teacher_validation_8192.npz"
-OUT = ROOT / "m3_student_sanity.json"
+OUT = ROOT / "reports/m3/m3_student_sanity.json"
 SEEDS = (20260919, 20260920)
 EPOCHS = 30
 BATCH_SIZE = 1024

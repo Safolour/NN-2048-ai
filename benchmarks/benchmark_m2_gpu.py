@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT / "benchmarks"))
 from _m2_utils import NvidiaSmiSampler, timed_cuda_loop, write_json
 from game2048.m2_models import ResidualMLP2048, Transformer2048, trainable_parameter_count
 
-OUTPUT = ROOT / "m2_gpu_benchmark.json"
+OUTPUT = ROOT / "reports/m2/m2_gpu_benchmark.json"
 BATCHES = [256, 512, 1024, 2048, 4096, 8192]
 DEVICE = torch.device("cuda")
 SEED = 20260918
