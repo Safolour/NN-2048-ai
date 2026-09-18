@@ -339,7 +339,18 @@ CI workflow 已在 Search Unblock 阶段支持：
 
 Search Unblock implementation 与 docs closeout CI 均已 green。
 
-本轮 M3 candidate commit push 后必须再次等待该 commit 对应的 GitHub Actions green；完成后本节回写 run ID / conclusion。
+M3 candidate remote CI：
+
+- candidate commit：`7c95f9c5f543065b220fb5f9e9114521732cdc0b`
+- GitHub Actions：CI run #17
+- run ID：`35397080143`
+- event：push
+- conclusion：**success**
+- M2 C++ fast backend build：success
+- M3 C++ tuple backend build：success
+- remote full pytest：success
+
+因此 candidate remote CI gate：PASS。
 
 ## 16. FROZEN VERIFICATION
 
@@ -392,21 +403,18 @@ canonical 8192-state dataset 保持未增强；D4 仅训练时在线使用。
 
 ## 19. FINAL GIT STATE
 
-本报告当前处于 candidate closeout 前工作树。
+M3 implementation candidate commit：
 
-完成后必须：
+`7c95f9c5f543065b220fb5f9e9114521732cdc0b`
 
-- 只 stage 本轮 M3 实现/报告文件
-- 不 stage 用户 prompts / master plan
-- 不 stage 用户主动删除的旧 M1/M2 JSON
-- 不 stage `.vs/`
-- 不 commit 512 MiB checkpoint
-- 创建普通 M3 candidate commit 并 push
-- 等待该 commit 的 GitHub Actions green
-- **不创建 M3 tag**
-- **不标记 M3 AUDITED PASS / FROZEN**
+该 commit 已 push 到 `origin/main`，GitHub Actions run #17（ID `35397080143`）结论为 **success**。
 
-最终 commit / origin/main / CI 状态将在收口后回写。
+candidate implementation 已停止变更。随后只允许一个 docs-only report closeout descendant 记录上述 CI 事实；它不改变 checkpoint、Search、dataset、calibration 或 Student 实现。
+
+- 不创建 M3 tag
+- 不标记 M3 AUDITED PASS / FROZEN
+- 不进入 M4/M5
+- 用户 prompts/master plan、旧 M1/M2 JSON 删除、`.vs/` 与本地 artifacts 不混入 M3 commit
 
 ## 20. REMAINING BLOCKERS
 
