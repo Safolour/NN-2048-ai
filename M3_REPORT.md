@@ -2,391 +2,427 @@
 
 ## 1. RESULT
 
-**M3 SEARCH PERFORMANCE UNBLOCK PASS**
+**M3 CANDIDATE COMPLETE**
 
-本结论只表示 M3 的 depth-3 Expectimax Search 性能阻塞已经解除，不表示 M3 candidate / AUDITED PASS。没有创建 M3 tag，没有冻结 M3，也没有进入 M4/M5。
+本结论表示 M3 施工单要求的 checkpoint/Teacher semantics、exact depth-3 Search、calibration probe、8192-state / 64-game 小规模 Teacher dataset、game-level split、ResidualMLP Student sanity、Search profile、full regression 与 remote CI gate 已具备候选完成条件。
+
+这**不是** M3 AUDITED PASS。本阶段不创建 M3 tag、不把 M3 标记为 frozen、不进入 M4/M5；candidate 提交后必须 STOP，交回独立审计。
 
 ## 2. STARTING STATE
 
-- Performance Unblock 起点：`240fa3c8b3fcf3fa497d9f11c2aea262d31b46d6`
-- WIP baseline 之前的 M3 correctness/performance-stop 工作已保留。
-- 固定 checkpoint：`teacher_checkpoints/m3/ordinary_td_comparator_ep4800000_7192719323a0.bin`
-- checkpoint SHA-256：`7192719323a073ba2b6b19b62cb7d46ef4aa90ecc8c4ae6baf27ad0c51566a84`
-- 历史 Search baseline：1.127171768 roots/s，227.117 s / 256 roots，formal-leaf/evaluator share ~86.6%。
-- 本轮仅做 exact performance engineering；Search semantics、checkpoint、depth、chance distribution、backup 均未改变。
+- 本轮从 Search Performance Unblock closeout 后恢复。
+- resume HEAD / origin/main：`962652d91610f246c589fc0ff06c0ac856653ac2`
+- Search Performance Unblock implementation：`4ceebef9a028ec084c18248d41d827c804e333de`
+- frozen M0/M1/M2 均未移动。
+- 本轮没有重做 checkpoint copy、loader format gate、Search semantics 或 256-state corpus。
+- 用户自己的主计划 / prompt 修改及旧 M1/M2 临时 JSON 删除保持未 stage、未 restore。
 
-## 3. WIP BASELINE COMMIT
+## 3. CHECKPOINT
 
-WIP baseline commit：
+- runtime path：`teacher_checkpoints/m3/ordinary_td_comparator_ep4800000_7192719323a0.bin`
+- size：536,871,168 bytes
+- SHA-256：`7192719323a073ba2b6b19b62cb7d46ef4aa90ecc8c4ae6baf27ad0c51566a84`
+- expected/local/upstream SHA：一致
+- format：`U2048NT6` v2
+- stage_count：1
+- stage_thresholds：`[0]`
+- tuple schema：8 patterns × 6 cells，D4 8 symmetries，4-bit feature alphabet，float32 weights
+- training provenance：ordinary-TD comparator episode 4,800,000
+- loader source：`src/game2048/m3_tuple_teacher.py`
+- performance backend：`cpp/m3_tuple_backend/` + `src/game2048/m3_tuple_backend.py`
+- binary 保持 Git-ignored，未进入 Git history。
 
-`a433d1e4d73eea2a62df0df994487e4e015da1c4`
+## 4. TUPLE EVALUATOR
 
-message：`m3: checkpoint correctness-pass search-performance-blocked baseline`
+board encoding：
 
-该 commit 固化了性能解锁前的 correctness-pass / performance-blocked 状态，后续优化均从此基础增量进行。
+- formal board：`uint8[16]` exponent board
+- tuple feature：每个 exponent 按 checkpoint ABI 饱和到 4-bit 0..15
+- pattern-major -> symmetry-minor 固定 64-slot 累加顺序
 
-## 4. OFFICIAL PYTHON / FULL PYTEST BASELINE
+256-state raw probe：
 
-最终指定解释器：
+- count：256
+- min：-19,792.9238
+- max：27,937.7227
+- mean：-901.7502
+- std：6,177.5561
+
+deterministic / differential：
+
+- 10,019-board Python vs C++ evaluator：bit-identical，max abs error 0.0
+- C++ no-prefetch vs prefetch：bit-identical
+- upstream 256-board `2048_ai.exe infer --agent m6` anchor：max abs error 0.0，action disagreement 0
+- exponent 63/64/127/255 safety gate：PASS
+- batch 1/16/128/2048 consistency：PASS
+- memory-owner/read-only/repeated-call safety：PASS
+
+## 5. SEARCH SEMANTICS
+
+- algorithm：formal-state Expectimax
+- decision_depth：3
+- chance nodes 不消耗 decision depth
+- spawn：空格均匀 × 90% exponent-1 / 10% exponent-2
+- action edge：immediate merge reward exactly once
+- leaf：最后 chance 后的 formal state
+- leaf evaluator：`tuple_afterstate_greedy_1ply_adapter`
+- leaf adapter：`L_tuple(s)=max_a [reward(s,a)+V_tuple(afterstate(s,a))]`
+- terminal future：0
+- cache key：node type + remaining decision depth + board bytes
+- Search value classification：`SEARCH_VALUE_RAW_LEAF`
+
+没有 chance sampling、beam、top-k spawn、低概率裁剪、降 depth、quantization 或 checkpoint 替换。
+
+## 6. SEARCH CORRECTNESS
+
+固定 256-root / 16-game semantic corpus：
+
+- 911 legal action values
+- legal mask：完全一致
+- Python reference vs final C++-accelerated path：bit-identical
+- max abs error：0.0
+- mean abs error：0.0
+- best-action disagreement：0
+- player_nodes：145,588
+- chance_nodes：477,658
+- leaf_calls：1,600,220
+- move_calls：542,996
+- chance_outcomes：1,745,808
+- cache lookups：623,246
+- cache hits：295,948
+
+所有 node/cache counts 与 Python oracle 一致。
+
+## 7. TEACHER SAMPLE SCHEMA
+
+canonical sample 保存：
+
+- `state uint8[16]`
+- `teacher_value float64[4]`
+- `reward int64[4]`
+- `afterstate uint8[4,16]`
+- `legal_mask bool[4]`
+- `game_id int64`
+- `step_index int32`
+- `current_score int64`
+- `max_tile_exp uint8`
+- teacher/checkpoint/depth/data-source/value/search/leaf metadata
+
+非法动作固定：
+
+- legal_mask=False
+- teacher_value=NaN
+- reward=0
+- afterstate=all-zero sentinel
+
+8192-state artifact 已逐项验证上述 sentinel 与合法 value finite 规则。
+
+## 8. DATASET
+
+canonical artifact：
+
+`artifacts/m3/m3_teacher_validation_8192.npz`
+
+来源：
+
+1. frozen tuple checkpoint 原生 `greedy_1ply` policy 推进 64 个完整游戏到 terminal；
+2. 每局从完整轨迹均匀抽取 128 个非终局 formal states；
+3. 对选出的 8192 states 使用 exact decision_depth=3 Expectimax 打 Teacher label。
+
+规模：
+
+- states：8,192
+- complete source games：64
+- states/game：128
+- source-game moves：min 1,065 / median 10,641 / max 13,893
+- canonical artifact：未做 D4 augmentation
+
+game-level split，seed=20260919：
+
+- train：51 games / 6,528 states
+- validation：6 games / 768 states
+- test：7 games / 896 states
+- train/validation/test game_id overlap：0
+
+D4 augmentation 只在 Student train split 之后在线进行，不覆盖 canonical artifact。
+
+## 9. VALUE SEMANTICS
+
+最终保持严格区分：
+
+- tuple raw：`RAW_TUPLE_HEURISTIC`
+- formal-state leaf：`FORMAL_STATE_TUPLE_HEURISTIC`
+- depth-3 Search：`SEARCH_VALUE_RAW_LEAF`
+- realized rollout return：`FUTURE_SCORE`
+
+没有把 raw tuple / formal leaf / Search action value 偷换成绝对 Student Q/V/A truth。
+
+最终没有任何 raw/search value 被升级成 `FUTURE_SCORE` 或 `CALIBRATED_FUTURE_SCORE`。
+
+## 10. CALIBRATION
+
+§18 固定 probe：
+
+- 128 semantic/profile states
+- 来自 16 game_ids，每局取 8 个 evenly-spaced slots
+- 16 stochastic rollouts/state
+- total rollouts：2,048
+- continuation policy：frozen checkpoint 原生 `greedy_1ply`
+- 每一步 policy：argmax immediate_reward + V_tuple(afterstate)
+- tie-break：最低 action index，与 frozen adapter 一致
+- spawn：真实 90/10 + 空格均匀
+- rollout policy decisions：12,219,131
+- wall：126.19 s
+- throughput：96,834 policy decisions/s
+
+all-128 correlation：
+
+- raw selected-afterstate V vs realized future score：Pearson 0.9371 / Spearman 0.9107
+- formal leaf L_tuple vs realized future score：Pearson 0.9371 / Spearman 0.9107
+- depth-3 best Search value vs greedy_1ply return（diagnostic only）：Pearson 0.9367 / Spearman 0.9086
+
+formal-leaf affine fit，仅 train split 拟合：
+
+`future_score_hat = 1.3018451 * L_tuple - 69881.4718`
+
+train：
+- R² 0.8541
+- MAE 17,503.65
+- RMSE 22,949.67
+
+validation：
+- Pearson 0.6046
+- Spearman 0.6190
+- R² **0.0443**
+- MAE 16,726.93
+- RMSE 21,651.72
+
+test：
+- Pearson 0.9716
+- Spearman 0.9567
+- R² 0.9298
+- MAE 11,314.34
+- RMSE 16,069.65
+
+结论：全局相关性很高，但独立 game-level validation 与 test 稳定性不一致，因此 affine mapping **不晋升为 CALIBRATED_FUTURE_SCORE**。tuple/formal/Search 语义保持 RAW；M3 按施工单转入 policy/ranking-only Student supervision。
+
+旧版 repeated depth-3-to-terminal rollout diagnostic 已明确废止；其遗留 7 complete + 1 interrupted evidence 保存在 `artifacts/m3/calibration_viability_progress/`，不用于本 calibration fit。
+
+
+## 11. STUDENT SANITY
+
+固定模型：现有 `ResidualMLP2048`，没有修改 architecture。
+
+由于 Search values 仍为 `SEARCH_VALUE_RAW_LEAF`：
+
+- supervision：teacher-best-action cross entropy / classification
+- absolute Q regression：禁止并未执行
+- absolute V regression：禁止并未执行
+- absolute afterstate regression：禁止并未执行
+- legal-action ranking：evaluation metric
+
+训练协议：
+
+- device：RTX 5060 Laptop GPU
+- PyTorch：2.9.1+cu130
+- epochs：30
+- batch：1024
+- optimizer：AdamW
+- lr：3e-4
+- weight decay：1e-4
+- train：split 后 random D4 augmentation
+- validation/test：canonical data
+- fixed seeds：20260919、20260920
+- test split 只在两次固定训练完成后读取，不参与调参
+
+合法动作随机基线：
+
+- train：29.43%
+- validation：29.34%
+- test：29.28%
+
+seed 20260919：
+
+- final validation CE：1.1138
+- validation teacher-best legal-action accuracy：45.18%
+- validation legal pairwise ranking accuracy：78.37%
+- test best legal-action accuracy：46.76%
+- test legal pairwise ranking accuracy：78.11%
+- validation D4 legal-argmax consistency：61.38%
+
+seed 20260920：
+
+- final validation CE：1.1262
+- validation teacher-best legal-action accuracy：41.67%
+- validation legal pairwise ranking accuracy：77.01%
+- test best legal-action accuracy：45.65%
+- test legal pairwise ranking accuracy：76.92%
+- validation D4 legal-argmax consistency：59.17%
+
+两次 seed 均满足：
+
+- train metric 明显改善
+- validation 不发散
+- validation accuracy 明显高于合法动作随机基线
+- fixed-seed rerun 复现同方向结果
+
+因此：**M3_STUDENT_SANITY_PASS**。
+
+CUDA 训练请求了 deterministic algorithms，但 cuBLAS 提示未设置 bitwise-deterministic workspace；本 gate 只声明两次固定 seed 的“同方向可复现”，不声称逐 bit 相同。
+
+## 12. SEARCH PROFILE
+
+最终 exact 256-root profile：
+
+- wall：40.5036 s
+- root decisions/s：**6.320418629**
+- nodes/s：54,895.45
+- mean：0.157902 s/root
+- median：0.142790 s/root
+- p95：0.373139 s/root
+- max：0.519936 s/root
+- cache hit rate：47.4849%
+
+分项：
+
+- formal-leaf / tuple evaluator：17.9425 s，约 44.4%
+- move generation：10.7185 s，约 26.5%
+- chance expansion：5.4905 s，约 13.6%
+- recursive Python orchestration residual：5.8422 s，约 14.5%
+- hash：0.4278 s
+
+历史 baseline：
+
+- 1.127171768 roots/s
+- 227.117 s / 256 roots
+- formal-leaf/evaluator share ~86.6%
+
+最终 speedup：**5.6073×**。
+
+没有已知的 Python/NumPy 数量级损失继续被当成正常成本接受。
+
+## 13. PERFORMANCE GATE
+
+Search Performance Unblock：**PASS**
+
+- exact 256-root throughput：6.3204 roots/s >= 5.0
+- projected 8192-state serial Search：1296.12 s ≈ 21.60 min <= 30 min
+- production dataset generation 使用 8-worker exact Search，实际 labeling steady-state 约 42 roots/s
+- depth、chance、leaf、backup、checkpoint 均未改变
+
+M3 Search 性能不再是 blocker。
+
+## 14. PYTEST
+
+最终 candidate full pytest 必须使用：
 
 `D:\sd-webui-forge-aki-v1.0\python\python.exe`
 
-Performance Unblock 收口后的完整 pytest：
+candidate full regression：
 
 - **525 passed**
 - **0 failed**
 - **0 skipped**
 - **0 xfailed**
-- 6 warnings，均为既有 PyTorch Transformer nested-tensor warning
-- wall：24.80 s
+- 6 warnings（既有 PyTorch Transformer nested-tensor warning）
+- wall：23.55 s
 
-## 5. EVALUATOR DECOMPOSITION
+本地 candidate regression gate：PASS。
 
-P1 对 `formal_state_leaf_batch` 做了阶段拆分。2048-board / 100 iterations 的代表性累计时间：
+## 15. CI
 
-- M1 NumPy `move_batch`：1.2262 s
-- legal compaction：0.0237 s
-- stage selection：0.0268 s
-- feature packing：1.5860 s
-- random weight lookup：1.2784 s
-- weight accumulation：0.1632 s
-- reward + continuation：0.0086 s
-- max legal：0.0279 s
-- Python call/allocation residual：2.1462 s
-- formal total reference：6.4869 s
-
-这证明原先 86.6% 的“tuple evaluator”包裹时间并非只有随机大表 lookup，还混有 NumPy movement 与 Python/array orchestration。
-
-## 6. LEAF BATCH DISTRIBUTION
-
-同一 256-root / 16-game / depth=3 corpus：
-
-- formal leaf states：1,600,220
-- Python leaf batch calls：176,814
-- mean batch：9.05
-- median：8
-- p90：14
-- p99：26
-- max：28
-
-histogram：
-
-- 2–4：28,143
-- 5–8：78,306
-- 9–16：59,563
-- 17–32：10,802
-
-真实工作负载以小 batch 为主，因此 primitive 优化必须在 batch 8–32 区间真正有效。
-
-## 7. LEAF DUPLICATION
-
-exact board-bytes 统计：
-
-- total leaf formal states：1,600,220
-- unique leaf states：1,279,347
-- within-root duplicate count：148,976
-- within-root duplicate ratio：9.31%
-- global/cross-root duplicate count：320,873
-- global duplicate ratio：20.05%
-
-存在可观 duplicate，但本轮最终 throughput 已满足 gate，因此没有继续为了 dedup 进行额外工程化。
-
-## 8. UPSTREAM M6 REFERENCE
-
-上游参考：
-
-- `m6.cpp` SHA-256：`3152d41c16b5f69122d2629e892a4bf8784eca877a2ea49ea1294077bc7f52c6`
-- `m6.hpp` SHA-256：`9c88ad5fbd0a391b39f86ec3e1d5f2306f6a83b6e03df5709131ec1c257fb23d`
-
-256-board upstream `2048_ai.exe infer --agent m6` anchor differential：
-
-- max abs error：0.0
-- action disagreement：0
-
-外部 dirty repo 仅作为语义/实现参考，没有形成 build dependency。
-
-## 9. C++ TUPLE BACKEND
-
-新增独立 backend：
-
-- `cpp/m3_tuple_backend/`
-- `src/game2048/m3_tuple_backend.py`
-
-生产语义保持：
-
-- U2048NT6
-- 8 patterns × 6 cells
-- D4 8 symmetries
-- 4-bit exponent saturation
-- pattern-major -> symmetry-minor 64-slot 累加顺序
-- float32 weights
-- read-only NumPy memmap/buffer
-- stage selection 支持 uint8 exponent 0..255
-- scalar prefetch variant
-
-Python evaluator 保留为 correctness oracle。
-
-## 10. DIFFERENTIAL CORRECTNESS
-
-C++ tuple evaluator：
-
-- 10,019 boards Python vs C++ no-prefetch：bit-identical，max abs error 0.0
-- 10,019 boards Python vs C++ prefetch：bit-identical，max abs error 0.0
-- no-prefetch vs prefetch：bit-identical
-- 256 formal leaves：bit-identical
-- 10,000 formal-state leaves，在复用 frozen M2 movement 后：bit-identical，max/mean abs error 0.0
-
-最终 exact Search differential：
-
-- 256 roots
-- 911 legal action values
-- legal mask equal：true
-- action values：bit-identical
-- max abs error：0.0
-- mean abs error：0.0
-- best-action disagreement：0
-- player/chance/leaf/move/chance-outcome/cache lookup/cache hit counts：全部一致
-
-## 11. PRIMITIVE A/B
-
-C++ tuple primitive 的关键 steady-state speedup：
-
-- batch 1：~5.40×
-- batch 16：**11.57×**
-- batch 32：**10.99×**
-- batch 128：~8.34×
-- batch 2048：~4.05×
-- batch 8192：~3.96×
-
-真实关键 batch 16–32 明显超过施工单 >=3× 要求。
-
-memory-safety gate：
-
-- N=1：PASS
-- empty batch：PASS
-- read-only weights：PASS
-- repeated calls exact：PASS
-- independent memmap owner lifetime：PASS
-
-## 12. SEARCH A/B
-
-P5 只替换 tuple evaluator、其余 Search 不变时：
-
-Python contemporaneous baseline：
-
-- 1.6191 roots/s
-- 158.112 s / 256 roots
-
-C++ no-prefetch：
-
-- 2.2375 roots/s
-- 114.416 s / 256 roots
-
-C++ prefetch：
-
-- **2.3751 roots/s**
-- 107.783 s / 256 roots
-
-P5 correctness 全部 bit-identical，但 throughput 仍低于 5 roots/s，因此按施工单进入 evidence-driven P6。
-
-## 13. REPROFILE
-
-P5 C++ prefetch 后 profile 仍显示 formal-leaf wrapper 占主导，其中实际新热点是 formal leaf 内部仍调用 M1 NumPy movement。
-
-P6 后最终 256-root profile：
-
-- total Search：40.4215 s
-- wall：40.5036 s
-- tuple/formal-leaf：17.9425 s，约 44.4%
-- move generation：10.7185 s，约 26.5%
-- chance expansion：5.4905 s，约 13.6%
-- hash：0.4278 s
-- recursive Python orchestration residual：5.8422 s，约 14.5%
-
-最终已不存在单项 >=50% 或明显可直接修复的 Python/NumPy 数量级损失。
-
-## 14. SECOND-STAGE OPTIMIZATION
-
-P6 仅做了一项由 profile 直接证明的低风险改动：
-
-当 `TupleTeacher.backend == "cpp"` 时，`formal_state_leaf_batch` 的四动作展开复用已经 frozen / audited 的 M2 C++ `scalar+row-lut` movement primitive；Python oracle 路径保持原 M1 NumPy movement，不修改 frozen M2 source。
-
-P6 micro A/B：
-
-- batch 2：11.81×
-- batch 4：16.09×
-- batch 8：**11.76×**
-- batch 9：9.78×
-- batch 14：10.36×
-- batch 16：9.00×
-- batch 28：7.16×
-- batch 32：7.16×
-- batch 128：3.65×
-
-所有测试 batch 均 bit-identical。
-
-## 15. FINAL THROUGHPUT
-
-最终 exact 256-root corpus：
-
-- **6.320418629 roots/s**
-- wall：**40.5036462 s**
-- mean：0.157902 s/root
-- median：0.142790 s/root
-- p95：0.373139 s/root
-- max：0.519936 s/root
-- nodes/s：54,895.45
-- cache hit rate：47.4849%
-
-相对历史 1.127171768 roots/s baseline：
-
-- **5.6073× speedup**
-
-满足 >=5.0 roots/s Performance Unblock gate。
-
-## 16. 8192 PROJECTION
-
-按最终 exact 256-root throughput：
-
-- projected 8192 Search time：**1296.116678 s**
-- 即约 **21.60 分钟**
-
-要求 <=30 分钟，PASS。
-
-## 17. INVALIDATED DEPTH3 ROLLOUT DIAGNOSTIC
-
-上一版施工单曾错误把 calibration continuation 解释成“每步 repeated depth-3 Expectimax 一直 rollout 到 terminal”，并把 2048 rollout 总 wall-clock 当作 Performance Unblock gate。
-
-最新版施工单明确废止该解释：
-
-- 此诊断**不是** Search Unblock PASS 条件
-- 不得继续补跑
-- 不得用于 calibration fit
-- 普通 M3 正式 calibration continuation 改为 frozen checkpoint 原生 `greedy_1ply` policy
-
-遗留诊断进度保存在：
-
-`artifacts/m3/calibration_viability_progress/`
-
-恢复时状态：
-
-- 8 slots
-- 7 complete
-- 1 interrupted
-- interrupted index 0 已到 10,304 decisions / 1384.5 s，仍未 terminal
-
-这些文件只保留为“错误 repeated depth-3 continuation 会导致极长完整对局”的诊断 evidence，不计入正式 M3 calibration 完成度。
-
-## 18. PYTEST
-
-最终指定官方 Python full regression：
-
-**525 passed, 0 failed, 0 skipped, 0 xfailed**
-
-本地 correctness gate：PASS。
-
-## 19. CI
-
-已更新 `.github/workflows/ci.yml`，Ubuntu CI 将同时：
+CI workflow 已在 Search Unblock 阶段支持：
 
 1. build frozen M2 C++ fast backend
 2. build M3 C++ tuple backend
-3. run full pytest
+3. run full pytest on Ubuntu / Python 3.12
 
-CI 不依赖真实 512 MiB checkpoint。
+Search Unblock implementation 与 docs closeout CI 均已 green。
 
-远端 implementation CI 已完成：
+本轮 M3 candidate commit push 后必须再次等待该 commit 对应的 GitHub Actions green；完成后本节回写 run ID / conclusion。
 
-- implementation commit：`4ceebef9a028ec084c18248d41d827c804e333de`
-- GitHub Actions：CI run #15
-- run ID：`35395397608`
-- event：push
-- conclusion：**success**
-- M2 C++ backend build：success
-- M3 C++ tuple backend build：success
-- full pytest step：success
+## 16. FROZEN VERIFICATION
 
-因此远端 CI gate：PASS。
+权威 frozen tags 必须保持：
 
-## 20. FROZEN VERIFICATION
+- `m0-reference-pass^{}` -> `3f2def1d95f56eff776e671143188947bf64485b`
+- `m1-fastenv-audited-pass^{}` -> `e5486017a90eeec4fb9814de7880b3c413dc06dd`
+- `m2-network-audited-pass^{}` -> `6a9da5b1bf7c72207acd6e89bc667d439d4823a8`
 
-frozen tags 解引用到 commit：
+本轮没有修改 frozen M2 backend source，没有移动任何 frozen tag。
 
-- M0 `m0-reference-pass^{}` -> `3f2def1d95f56eff776e671143188947bf64485b`
-- M1 `m1-fastenv-audited-pass^{}` -> `e5486017a90eeec4fb9814de7880b3c413dc06dd`
-- M2 `m2-network-audited-pass^{}` -> `6a9da5b1bf7c72207acd6e89bc667d439d4823a8`
+candidate 收口后再次核验。
 
-本轮没有移动 frozen tags，没有修改 frozen M2 backend source。
+## 17. FILES CHANGED
 
-## 21. FILES CHANGED
+普通 M3 恢复阶段新增/更新的主要文件：
 
-Performance Unblock implementation 主要包括：
-
-- `.github/workflows/ci.yml`
-- `cpp/m3_tuple_backend/CMakeLists.txt`
-- `cpp/m3_tuple_backend/m3_tuple_backend.cpp`
-- `src/game2048/m3_tuple_backend.py`
-- `src/game2048/m3_tuple_teacher.py`
-- `tests/test_m3_tuple_backend.py`
-- `benchmarks/benchmark_m3_tuple_evaluator.py`
-- `benchmarks/benchmark_m3_tuple_backend.py`
-- `benchmarks/benchmark_m3_search_unblock.py`
-- `benchmarks/benchmark_m3_p6_reprofile.py`
-- `benchmarks/benchmark_m3_p6_search.py`
-- `m3_tuple_backend_benchmark.json`
-- `m3_search_performance_unblock.json`
-- `m3_teacher_profile.json`
+- `benchmarks/validate_m3_value_calibration.py`
+- `benchmarks/generate_m3_teacher_dataset.py`
+- `benchmarks/validate_m3_student_sanity.py`
+- `m3_teacher_calibration.json`
+- `m3_teacher_dataset.json`
+- `m3_student_sanity.json`
 - `M3_REPORT.md`
 
-用户主动修改的主计划 / M3 prompts，以及用户主动删除的旧 M1/M2 临时 JSON，不属于本轮 implementation commit。
+Search Performance Unblock 已提交的 M3 C++ evaluator / benchmark / profile 文件继续保留。
 
-## 22. ARTIFACTS
+用户自己的 prompt/master-plan 修改、旧 M1/M2 临时 JSON 删除、`.vs/` 不属于本 candidate commit。
 
-权威/保留 artifacts：
+## 18. ARTIFACTS
 
-- `m3_tuple_backend_benchmark.json`
-- `m3_search_performance_unblock.json`
-- `m3_teacher_profile.json`
+正式本地 M3 artifacts：
+
+- `artifacts/m3/semantic_profile_states.npz`
+- `artifacts/m3/m3_calibration_rollouts.npz`
+- `artifacts/m3/m3_teacher_source_states_8192.npz`
+- `artifacts/m3/m3_teacher_source_games_64.json`
+- `artifacts/m3/m3_teacher_validation_8192.npz`
 - `artifacts/m3/m3_tuple_evaluator_profile.json`
 - `artifacts/m3/m3_p6_reprofile.json`
-- `artifacts/m3/semantic_profile_states.npz`
 - `artifacts/m3/search_ab_*_values.npz`
-- `artifacts/m3/calibration_viability_progress/`（已废止 diagnostic，仅保留证据）
+- `artifacts/m3/calibration_viability_progress/`（已废止 depth-3 rollout diagnostic，仅历史证据）
+- `artifacts/m3/diagnostics/`
 
-512 MiB checkpoint 继续保持 Git-ignored，不进入 Git history。
+临时 Teacher label chunks / generation progress / Search A/B progress 已在阶段结束时清理。
 
-## 23. FINAL GIT STATE
+512 MiB Teacher checkpoint 继续 Git-ignored，不进入 Git history。
 
-Search Performance Unblock implementation commit：
+canonical 8192-state dataset 保持未增强；D4 仅训练时在线使用。
 
-`4ceebef9a028ec084c18248d41d827c804e333de`
+## 19. FINAL GIT STATE
 
-该 commit 已 push 到 `origin/main`，并由 GitHub Actions run #15（ID `35395397608`）验证为 success。
+本报告当前处于 candidate closeout 前工作树。
 
-本次随后仅允许一个 report-only closeout commit 记录上述 CI 事实；它不改变 Search implementation。
+完成后必须：
 
-未创建 M3 tag，未将 M3 标记为 frozen / AUDITED PASS，未进入 M4/M5。
+- 只 stage 本轮 M3 实现/报告文件
+- 不 stage 用户 prompts / master plan
+- 不 stage 用户主动删除的旧 M1/M2 JSON
+- 不 stage `.vs/`
+- 不 commit 512 MiB checkpoint
+- 创建普通 M3 candidate commit 并 push
+- 等待该 commit 的 GitHub Actions green
+- **不创建 M3 tag**
+- **不标记 M3 AUDITED PASS / FROZEN**
 
-## 24. REMAINING BLOCKERS
+最终 commit / origin/main / CI 状态将在收口后回写。
 
-**Search 性能不再是 blocker。**
+## 20. REMAINING BLOCKERS
 
-剩余工作属于普通 M3，而不是 Search Performance Unblock：
+就 M3 施工单 candidate gate 而言，功能性 blocker 已解除：
 
-- value calibration（按正式 `greedy_1ply` continuation）
-- 8192-state / >=64-game Teacher dataset
-- game-level split
-- Student sanity
-- final M3 candidate report
-- candidate full pytest / remote CI
-- independent audit
+- checkpoint semantics：PASS
+- tuple evaluator：PASS
+- Search correctness：PASS
+- calibration probe：COMPLETE，且保守保持 RAW semantics
+- 8192-state / 64-game dataset：COMPLETE
+- game-level split：PASS
+- Student sanity：PASS
+- Search profile/performance：PASS
 
-## 25. NEXT M3 RESUME POINT
+剩余只允许执行 candidate 收口：
 
-Performance Unblock PASS 后必须立即停止性能工程。
+`full pytest -> candidate commit/push -> remote CI -> frozen/tag verification -> STOP for independent audit`
 
-恢复 `prompts/M3_IMPLEMENTATION_PROMPT.md`，从原性能 STOP 点之后继续：
-
-`value calibration -> 8192-state/64-game dataset -> game-level split -> Student sanity -> final M3 report -> full pytest -> candidate commit/push -> GitHub Actions -> STOP for independent audit`
-
-不得重做 checkpoint copy、loader format gate、Search semantics、256-state corpus 或本轮已通过的性能 correctness 工作。
+独立审计之前不得进入 M4/M5，不得创建 M3 tag，不得将 M3 标记为 AUDITED PASS。

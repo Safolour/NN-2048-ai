@@ -1,0 +1,34 @@
+{
+  "result": "M3_SMALL_TEACHER_VALIDATION_SET_COMPLETE",
+  "states": 8192,
+  "complete_source_games": 64,
+  "states_per_game": 128,
+  "source_policy": "frozen tuple checkpoint greedy_1ply",
+  "teacher_label_policy": "exact depth-3 Expectimax",
+  "decision_depth": 3,
+  "checkpoint_sha256": "7192719323a073ba2b6b19b62cb7d46ef4aa90ecc8c4ae6baf27ad0c51566a84",
+  "value_semantics": "SEARCH_VALUE_RAW_LEAF",
+  "canonical_unaugmented": true,
+  "split_seed": 20260919,
+  "split_game_counts": {
+    "train": 51,
+    "validation": 6,
+    "test": 7
+  },
+  "split_state_counts": {
+    "train": 6528,
+    "validation": 768,
+    "test": 896
+  },
+  "game_id_overlap": {
+    "train_validation": 0,
+    "train_test": 0,
+    "validation_test": 0
+  },
+  "source_game_moves": {
+    "min": 1065,
+    "median": 10641.0,
+    "max": 13893
+  },
+  "artifact": "artifacts/m3/m3_teacher_validation_8192.npz"
+}

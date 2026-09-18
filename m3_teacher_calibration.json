@@ -1,0 +1,147 @@
+{
+  "result": "CALIBRATION_PROBE_COMPLETE",
+  "checkpoint_sha256": "7192719323a073ba2b6b19b62cb7d46ef4aa90ecc8c4ae6baf27ad0c51566a84",
+  "continuation_policy": "greedy_1ply",
+  "continuation_definition": "argmax immediate_reward + V_tuple(afterstate), deterministic lowest-index tie-break",
+  "spawn_semantics": "uniform empty cell; 0.9 tile-2 / 0.1 tile-4",
+  "states": 128,
+  "source_games": 16,
+  "rollouts_per_state": 16,
+  "total_rollouts": 2048,
+  "seed_base": 202609190000,
+  "selection": "8 of 16 evenly-spaced semantic states per each of 16 game_ids (slots 0,2,...,14)",
+  "fit_split": "game-level 80/10/10 via seed 20260919",
+  "split_counts": {
+    "train": 96,
+    "validation": 8,
+    "test": 24
+  },
+  "rollout_wall_seconds": 126.18613200000254,
+  "rollout_policy_decisions": 12219131,
+  "rollout_policy_decisions_per_second": 96834.1830146577,
+  "future_score_summary": {
+    "mean_of_state_means": 160098.294921875,
+    "std_of_state_means": 62310.882779629996,
+    "min_state_mean": 12751.75,
+    "max_state_mean": 269216.75,
+    "mean_within_state_std": 74303.06463155939
+  },
+  "correlations_all_128": {
+    "raw_selected_afterstate_v_vs_return": {
+      "pearson": 0.937092576185813,
+      "spearman": 0.9106945901689536
+    },
+    "formal_state_leaf_vs_return": {
+      "pearson": 0.9371498188180466,
+      "spearman": 0.9107060357288892
+    },
+    "depth3_search_best_vs_return_diagnostic_only": {
+      "pearson": 0.936732209384891,
+      "spearman": 0.9086104805580603
+    }
+  },
+  "depth3_search_semantics": "SEARCH_VALUE_RAW_LEAF",
+  "raw_tuple_semantics_before_review": "RAW_TUPLE_HEURISTIC",
+  "formal_leaf_semantics_before_review": "FORMAL_STATE_TUPLE_HEURISTIC",
+  "affine_mapping": {
+    "raw_selected_afterstate_v": {
+      "slope": 1.2999859536383434,
+      "intercept": -69506.78395532431,
+      "metrics": {
+        "train": {
+          "count": 96,
+          "pearson": 0.9240922805860043,
+          "spearman": 0.8988045388327587,
+          "r2": 0.8539465430386435,
+          "mae": 17527.340218711026,
+          "rmse": 22958.427544674323,
+          "target_mean": 162563.34114583334,
+          "target_std": 60073.95417014661,
+          "prediction_mean": 162563.34114583346,
+          "prediction_std": 55513.87731290992
+        },
+        "validation": {
+          "count": 8,
+          "pearson": 0.6036607181783635,
+          "spearman": 0.6190476190476191,
+          "r2": 0.0410339291805456,
+          "mae": 16753.79387136709,
+          "rmse": 21688.389501552065,
+          "target_mean": 225176.78125,
+          "target_std": 22147.549616661003,
+          "prediction_mean": 213592.13723603304,
+          "prediction_std": 8428.485895960448
+        },
+        "test": {
+          "count": 24,
+          "pearson": 0.9715233547736314,
+          "spearman": 0.9567297464698796,
+          "r2": 0.9297476905811863,
+          "mae": 11326.775087868613,
+          "rmse": 16071.799529066604,
+          "target_mean": 128545.28125,
+          "target_std": 60636.51095403421,
+          "prediction_mean": 132990.31080887097,
+          "prediction_std": 64577.32060057343
+        }
+      },
+      "identity_diagnostic": {
+        "mae": 24749.22964477539,
+        "rmse": 30476.64502575703
+      }
+    },
+    "formal_state_leaf": {
+      "slope": 1.3018450984684529,
+      "intercept": -69881.47183228093,
+      "metrics": {
+        "train": {
+          "count": 96,
+          "pearson": 0.9241525707404151,
+          "spearman": 0.8988045388327587,
+          "r2": 0.8540579740061182,
+          "mae": 17503.652739665125,
+          "rmse": 22949.667848087567,
+          "target_mean": 162563.34114583334,
+          "target_std": 60073.95417014661,
+          "prediction_mean": 162563.34114583334,
+          "prediction_std": 55517.499180882885
+        },
+        "validation": {
+          "count": 8,
+          "pearson": 0.6046017569776613,
+          "spearman": 0.6190476190476191,
+          "r2": 0.04427359333845682,
+          "mae": 16726.92994799799,
+          "rmse": 21651.72368877896,
+          "target_mean": 225176.78125,
+          "target_std": 22147.549616661003,
+          "prediction_mean": 213640.54256172891,
+          "prediction_std": 8440.451101255874
+        },
+        "test": {
+          "count": 24,
+          "pearson": 0.9715914437238095,
+          "spearman": 0.9567297464698796,
+          "r2": 0.9297664816670053,
+          "mae": 11314.336905305621,
+          "rmse": 16069.649943063007,
+          "target_mean": 128545.28125,
+          "target_std": 60636.51095403421,
+          "prediction_mean": 132952.08588978284,
+          "prediction_std": 64647.73315018176
+        }
+      },
+      "identity_diagnostic": {
+        "mae": 24776.88589477539,
+        "rmse": 30509.378817027773
+      }
+    }
+  },
+  "final_classification": {
+    "raw_tuple_value": "RAW_TUPLE_HEURISTIC",
+    "formal_state_leaf": "FORMAL_STATE_TUPLE_HEURISTIC",
+    "depth3_search_value": "SEARCH_VALUE_RAW_LEAF",
+    "affine_mapping_status": "NOT_PROMOTED_TO_CALIBRATED_FUTURE_SCORE",
+    "reason": "Global correlation is high, but independent game-level validation is not stable (formal-leaf validation R2=0.0443 while test R2=0.9298). The plan explicitly allows M3 to finish with raw semantics and policy/ranking-only Student supervision."
+  }
+}
