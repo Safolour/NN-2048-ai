@@ -1132,11 +1132,10 @@ class Fast2048BatchEnv:
         _scores : (N,)    int64
         _rng    : numpy.random.Generator
 
-    The class additionally holds performance scratch / cache buffers that are
-    shared by the whole batch -- ``_empty_prefix`` (spawn prefix sums),
-    ``_rows_buffer`` (reusable row indices) and ``_terminated`` (the pipelined
-    terminal mask).  They are plain arrays, never independent per-environment
-    Python objects, and they carry no game semantics.
+    The class additionally holds performance scratch buffers that are shared by
+    the whole batch -- ``_empty_prefix`` (spawn prefix sums) and ``_rows_buffer``
+    (reusable row indices).  They are plain arrays, never independent
+    per-environment Python objects, and they carry no game semantics.
 
     It never creates ``Reference2048Env`` instances (nor any other per-game
     object); every transition is produced by the batch functions above.
@@ -1172,9 +1171,6 @@ class Fast2048BatchEnv:
         # these are constant allocations regardless of the spawn-group count.
         self._empty_prefix = np.zeros((self._num_envs, CELL_COUNT + 1), dtype=np.int64)
         self._rows_buffer = np.empty(self._num_envs, dtype=np.int64)
-        # Terminal-status cache for ``step``'s pipeline (see ``step``): ``None``
-        # means "stale, recompute on next use".
-        self._terminated: Optional[np.ndarray] = None
 
     # -- state access ------------------------------------------------------ #
 
@@ -1238,7 +1234,6 @@ class Fast2048BatchEnv:
         self._scores[:] = 0
         self._boards[:] = 0
         self._spawn_group(self._all_rows(), INITIAL_TILE_COUNT)
-        self._terminated = None
         return self._boards.copy()
 
     def reset_where(self, mask: np.ndarray) -> None:
@@ -1261,7 +1256,6 @@ class Fast2048BatchEnv:
         self._scores[rows] = 0
         self._boards[rows] = 0
         self._spawn_group(rows, INITIAL_TILE_COUNT)
-        self._terminated = None
 
     # -- stepping ---------------------------------------------------------- #
 
@@ -1286,11 +1280,9 @@ class Fast2048BatchEnv:
         some hypothetical alternative action.  (That is a statement about the
         reward checks only; it is not a blanket "nothing can fail after a spawn".)
 
-        Performance note: the local legal mask of this step's board is the same
-        work ``is_terminal_batch`` needs for the *next* step's board, so it is
-        pipelined -- each step computes the mask once and reuses the previous
-        step's result as this step's ``terminated``.  The very first result after
-        a reset is produced eagerly, so ``terminated`` is always exact.
+        Performance note: ``is_terminal_batch`` is a legality query served by the
+        movement-only path, so it stays valid on boards whose rewards would not fit
+        in ``int64``.
         """
         action_array = _as_actions(actions, self._num_envs)
         move = _move_batch(self._boards, action_array)
@@ -1326,9 +1318,8 @@ class Fast2048BatchEnv:
         self._scores[:] = new_scores
 
         # M0 evaluates terminal on ``s'``, the board *after* the spawn, so the
-        # status is computed here on the current buffer and then cached: the next
-        # step starts from exactly this board, so that cache is what it reads.
-        terminated = self._refresh_terminated()
+        # status is computed here on the current board buffer.
+        terminated = is_terminal_batch(self._boards)
 
         return BatchStepResult(
             states=self._boards.copy(),
@@ -1339,19 +1330,8 @@ class Fast2048BatchEnv:
             spawn_indices=spawn_indices,
             spawn_exponents=spawn_exponents,
         )
+
     # -- spawn plumbing ---------------------------------------------------- #
-
-    def _refresh_terminated(self) -> np.ndarray:
-        """Recompute the terminal status of every game from the board buffer.
-
-        ``is_terminal_batch`` is defined as "no action is legal", so the
-        environment reuses that definition rather than a second, cheaper rule.
-        The result is cached for the next ``step``, which starts from exactly this
-        board and would otherwise repeat the very same check.
-        """
-        self._terminated = is_terminal_batch(self._boards)
-        return self._terminated
-
 
     def _all_rows(self) -> np.ndarray:
         """``0..N-1`` as an ``int64`` array (reused buffer, no allocation)."""

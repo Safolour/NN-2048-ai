@@ -1,0 +1,45 @@
+name: CI
+
+# Mandatory CPU regression gate from M2 Preflight onwards (master plan, section
+# "持续集成 / GitHub Actions").  It runs the complete CPU-testable pytest suite,
+# which permanently includes the frozen M0 and M1 regression tests.
+#
+# Deliberately minimal first version: one job, one runner, one Python version.
+# This workflow is not a GPU performance gate -- GPU milestone acceptance keeps
+# running on the local RTX 5060, never on a hosted CPU runner.
+on:
+  push:
+  pull_request:
+
+jobs:
+  cpu-tests:
+    name: CPU test suite (Python 3.12)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # The repository has no packaging / dependency manifest: the suite is run
+      # through the root ``conftest.py``, which puts ``src/`` on ``sys.path``.
+      # So CI installs only what the CPU test suite actually needs.
+      - name: Install CPU test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install numpy pytest
+
+      - name: Show environment
+        run: |
+          python --version
+          python -c "import numpy; print('numpy', numpy.__version__)"
+          python -c "import pytest; print('pytest', pytest.__version__)"
+
+      # The complete suite.  Never narrowed to a single milestone: M0 and M1
+      # frozen regression must run here on every push and pull request.
+      - name: Run full pytest suite
+        run: python -m pytest

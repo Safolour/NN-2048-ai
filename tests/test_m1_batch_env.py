@@ -106,12 +106,39 @@ def test_reset_gives_exactly_two_spawned_tiles():
 
 
 def test_reset_zeroes_the_scores():
-    env = Fast2048BatchEnv(16, seed=SEED)
+    """``reset`` clears a score that a real ``step`` actually accumulated.
+
+    The score must not be faked by writing ``env._scores`` directly: the point is
+    to prove that the normal step path produced a non-zero score first.  So every
+    game is given the same mergeable board
+
+        [1, 1, 0, 0] / [0, 0, 0, 0] / [0, 0, 0, 0] / [0, 0, 0, 0]
+
+    through the (read-only) ``boards`` view.  ``LEFT`` then merges the two
+    exponent-1 tiles into one exponent-2 tile and pays exactly ``2 ** 2 == 4``.
+    A random initial board could not be used here: two freshly spawned tiles often
+    do not merge at all, so the pre-reset score would be unreliable.
+    """
+    count = 16
+    mergeable = np.array([1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=np.uint8)
+
+    env = Fast2048BatchEnv(count, seed=SEED)
     env.reset(seed=SEED)
-    env.step(np.full(16, int(Action.LEFT), dtype=np.uint8))
-    assert np.any(env.scores != 0) or True
+    assert np.all(env.scores == 0), "reset must start every game at score 0"
+
+    # ``env.boards`` is a read-only live view (assignment through it raises), so the
+    # deterministic fixture is written into the internal ``_boards`` buffer directly.
+    assert env._boards.shape == (count, 16)
+    env._boards[:] = mergeable
+
+    result = env.step(np.full(count, int(Action.LEFT), dtype=np.uint8))
+
+    assert np.all(result.legal), "LEFT is legal on this board for every game"
+    assert np.all(result.rewards == 4), f"rewards {np.unique(result.rewards).tolist()}"
+    assert np.all(env.scores == 4), f"scores {np.unique(env.scores).tolist()}"
+
     env.reset(seed=SEED)
-    assert np.all(env.scores == 0)
+    assert np.all(env.scores == 0), f"scores {np.unique(env.scores).tolist()}"
 
 
 def test_reset_where_only_touches_the_selected_environments():
