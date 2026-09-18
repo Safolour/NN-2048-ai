@@ -10,6 +10,9 @@ __pycache__/
 .coverage
 htmlcov/
 
+# Benchmark scratch output (worker result files are transient)
+.m1_worker_*.json
+
 # Virtual environments
 .venv/
 venv/
