@@ -6,16 +6,20 @@
 PASS
 ```
 
-M1 = FINAL PASS
+M1 = FINAL AUDITED PASS
 
-> Final PASS includes the post-audit int64 aggregate-overflow fix documented in §S.
-> The earlier `m1-fastenv-pass` tag (commit `a34e56b`) predates this fix and is
-> retained only as a historical snapshot; it is **not** the final defect-free
-> version. The final version is tagged `m1-fastenv-final-pass`.
+> The authoritative final M1 tag is `m1-fastenv-audited-pass`.
+>
+> `m1-fastenv-pass` (commit `a34e56b`) and `m1-fastenv-final-pass` (commit
+> `ce51f15`) are retained **only as historical snapshots**; neither is the
+> defect-free final version and neither was moved or deleted.
+>
+> FINAL AUDITED PASS includes the post-audit int64 aggregate-overflow fix (§S)
+> and the final legal/terminal reward-isolation audit (§T).
 
 全部 43 条 M1 Exit Criteria 通过（第 1–35 条为 M1 原有条目，第 36–39 条为
-向量化修复新增，第 40–43 条为本次 post-audit 溢出修复新增，逐条见 §P），
-其中性能相关的条目以**同机实测**为依据（§R.3 / §R.5 / §R.6 / §S）。
+向量化修复新增，第 40–43 条为 post-audit 溢出修复新增，逐条见 §P），
+其中性能相关的条目以**同机实测**为依据（§R.3 / §R.5 / §R.6 / §S / §T.6）。
 
 M1 的唯一目标——在冻结的 M0 Reference Environment 之上建立**可严格验证的高速
 批量状态生产者**——已达成。movement production hot path 中**不再存在任何与 N
@@ -36,7 +40,7 @@ M1 的唯一目标——在冻结的 M0 Reference Environment 之上建立**可�
 | `tests/test_m1_batch_env.py` | 24 个测试：`Fast2048BatchEnv` 构造、reset、reset_where、step、illegal action、rollout |
 | `tests/test_m1_high_tiles.py` | 37 个测试：高位 tile、int64 边界、overflow 契约 |
 | `tests/test_m1_vectorization.py` | 8 个测试：向量化回归契约（见 §R.4） |
-| `tests/test_m1_reward_overflow.py` | 31 个测试：int64 reward / score 聚合溢出契约、边界随机 differential 与 `step` 原子性（见 §S） |
+| `tests/test_m1_reward_overflow.py` | 41 个测试：int64 reward / score 聚合溢出契约、边界随机 differential、`step` 原子性（见 §S），以及 legal/terminal reward 隔离与 `scores` live view（见 §T） |
 | `benchmarks/_utils.py` | benchmark/profiling 共享工具：环境元数据、CPU/RSS 采样、计时与表格渲染（仅 stdlib + NumPy） |
 | `benchmarks/benchmark_m1_env.py` | 吞吐 benchmark：规模 sweep、worker scaling、primitive、producer→consumer |
 | `benchmarks/profile_m1_env.py` | wall-clock profiler（+ 可选 `cProfile`） |
@@ -84,7 +88,7 @@ $ git diff --stat HEAD -- \
 M0 文件是否被修改: 否
 M0 tag:           m0-reference-pass (annotated) -> 3f2def1
 M1 开始前 pytest: 261 passed
-M1 结束后 pytest: 422 passed（261 M0 + 161 M1，全部通过）
+M1 结束后 pytest: 432 passed（261 M0 + 161 M1 + 10 final-audit，全部通过）
 ```
 
 `git status --short` 只显示新增文件，没有任何 M0 文件被修改或删除。
@@ -97,14 +101,14 @@ M1 结束后 pytest: 422 passed（261 M0 + 161 M1，全部通过）
 
 ```text
 python -m pytest
-422 passed
+432 passed
 ```
 
 | 项目 | 数量 |
 | --- | --- |
-| pytest 总数 | 422 |
+| pytest 总数 | 432 |
 | M0 tests | 261（全部继续通过，未被排除） |
-| M1 tests | 161（122 原有 + 8 向量化回归 + 31 溢出/原子性回归） |
+| M1 tests | 171（122 原有 + 8 向量化回归 + 31 溢出/原子性回归 + 10 final-audit 回归） |
 | pytest config 排除 M0 | 无 |
 | skip / xfail | **0** |
 | tolerance 放宽 | **无**（probability 浮点比较沿用原 `abs tol <= 1e-12`） |
@@ -135,9 +139,9 @@ legal / terminal 一律 **exact equality**，任何 mismatch 都未放宽 tolera
 「删除 per-board 循环、改用跨 board 向量化内核」之后重新跑出的结果，
 不是复用修复前的旧数据。
 
-**post-audit 溢出修复后的回归验证**：全部 422 条测试是在 int64 聚合溢出修复
-（§S）之后重新跑出的；原 391 条**一条未删、一条未跳过**，另外新增 31 条
-溢出/原子性回归测试。
+**post-audit 溢出修复后的回归验证**：全部 432 条测试是在 int64 聚合溢出修复
+（§S）与 legal/terminal reward 隔离修复（§T）之后重新跑出的；原 391 条**一条未删、
+一条未跳过**，另外新增 31 条溢出/原子性回归测试与 10 条 final-audit 回归测试。
 
 ---
 
@@ -197,20 +201,28 @@ benchmark seed: 20260918
 动作策略：uniform random legal action；terminal env 显式 `reset_where` 后继续。
 两轮使用同一个固定 seed `20260918`、同一个 benchmark 逻辑与同一组环境规模。
 
-**口径说明（重要）**：两轮的 step count 并不完全相同 —— OLD 侧各档都用
-`16 steps`，NEW 侧由 `TARGET_TRANSITIONS` 推出 `64 / 64 / 48 / 24 / 12 steps`。
-因此本表两列之比是**有意义的性能证据**（同一 harness、同一机器、同一 seed、
-同一环境规模、每档总 transitions 相同），但**不是严格逐指令的 A/B**。
-严格同进程、同输入、交替测量的 primitive A/B 由
-`benchmarks/benchmark_ab_vectorization.py` 提供（§R.5）。
+**口径说明（重要）**：两轮的 step count 并不相同 —— OLD 侧各档一律
+`16 steps`（当时的 `--steps` 默认值），NEW 侧由 `TARGET_TRANSITIONS` 推出
+`64 / 64 / 48 / 24 / 12 steps`。以 4096 档为例：
 
-| num_envs | iterations | total transitions | OLD transitions/s | **NEW transitions/s** | speedup |
-| --- | --- | --- | --- | --- | --- |
-| 256 | 64 | 16,384 | 24,195 | **64,799** | **2.68×** |
-| 1,024 | 64 | 65,536 | 26,319 | **106,771** | **4.06×** |
-| 4,096 | 48 | 196,608 | 14,826 | **73,571** | **4.96×** |
-| 8,192 | 24 | 196,608 | 14,586 | **70,124** | **4.81×** |
-| 16,384 | 12 | 196,608 | 14,671 | **72,596** | **4.95×** |
+```text
+OLD:  4096 env × 16 steps  =  65,536 transitions
+NEW:  4096 env × 48 steps  = 196,608 transitions
+```
+
+因此两列连 `total transitions` 都不相等，本表**不是**「同 workload」的比较。
+两侧使用相同环境规模、相同 seed 和相同 benchmark 逻辑，吞吐又按每 transition
+归一，所以该比值仍是有意义的性能证据，用于证明**长期 steady-state 吞吐**提升；
+但它**不是严格逐指令的 A/B**。严格同进程、同输入、交替测量的 primitive A/B
+由 `benchmarks/benchmark_ab_vectorization.py` 提供（§R.5）。
+
+| num_envs | OLD iters | NEW iters | OLD total | NEW total | OLD transitions/s | **NEW transitions/s** | speedup |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 256 | 16 | 64 | 4,096 | 16,384 | 24,195 | **64,799** | **2.68×** |
+| 1,024 | 16 | 64 | 16,384 | 65,536 | 26,319 | **106,771** | **4.06×** |
+| 4,096 | 16 | 48 | 65,536 | 196,608 | 14,826 | **73,571** | **4.96×** |
+| 8,192 | 16 | 24 | 131,072 | 196,608 | 14,586 | **70,124** | **4.81×** |
+| 16,384 | 16 | 12 | 262,144 | 196,608 | 14,671 | **72,596** | **4.95×** |
 
 ¹ 沙箱禁止进程内存查询，`GetProcessMemoryInfo` 返回 0，两轮的 peak RAM 均记为
 `unknown`。16384 档**正常完成**，因此没有触发 `SKIPPED_RESOURCE_LIMIT`。
@@ -612,7 +624,7 @@ C++ migration recommended: DEFER_TO_M2
 | 31 | C++ migration decision 已写明 | **PASS** | `DEFER_TO_M2`（§N） |
 | 32 | `docs/M1_FAST_ENV_SPEC.md` 已生成 | **PASS** | 见文件；§3.5 已更新为向量化实现说明 |
 | 33 | `M1_REPORT.md` 已生成 | **PASS** | 本文件 |
-| 34 | `python -m pytest` 全绿 | **PASS** | 422 passed（261 M0 + 161 M1，0 skip / 0 xfail） |
+| 34 | `python -m pytest` 全绿 | **PASS** | 432 passed（261 M0 + 161 M1 + 10，0 skip / 0 xfail） |
 | 35 | M2 尚未开始 | **PASS** | 无 network/trainer/replay/self-play/teacher/expectimax/search 代码；未加载 tuple checkpoint |
 | **36** | **movement hot path 无 N-dependent Python 循环** | **PASS** | §R.2 / §R.3 字段 `N-dependent Python movement loop: NONE`；§R.4 的 4 类回归测试钉死 |
 | **37** | **`move_batch` 相对修复前提速 ≥ 2.0×** | **PASS** | 152.0 k → 787.4 k boards/s = **5.18×**（同进程 A/B 对照 10.97×），§R.6 |
@@ -742,10 +754,12 @@ Primitive speedup:
   is_terminal_batch    5.72x
 
 Old 4096-env throughput:
-  14,826 transitions/s   (baseline_before_vectorization.json, 4096 env × 48 steps)
+  14,826 transitions/s   (baseline_before_vectorization.json, 4096 env × 16 steps
+                          = 65,536 transitions)
 
 New 4096-env throughput:
-  73,571 transitions/s   (benchmark_results.json, 4096 env × 48 steps)
+  73,571 transitions/s   (benchmark_results.json, 4096 env × 48 steps
+                          = 196,608 transitions)
 
 End-to-end speedup:
   4.96x
@@ -842,16 +856,21 @@ env step x48             10.78 k    146.30 k    13.57x
 
 判据 2: 4096-env 端到端吞吐相对修复前 baseline 提速 >= 1.5x
   实测:  14,826 -> 73,571 transitions/s = 4.96x
-         （两侧均为 num_envs = 4096 x 48 steps = 196,608 transitions）
+         OLD: 4096 env x 16 steps =  65,536 transitions
+         NEW: 4096 env x 48 steps = 196,608 transitions
+         （两侧环境规模 / seed / benchmark 逻辑相同，但正式记录的 step count
+           不同，因此该 throughput 比用于证明长期 steady-state 吞吐提升，
+           不属于严格逐指令 A/B；严格同进程 A/B 见 §R.5）
   结论:  PASS
 ```
 
 同机修复前 baseline 原始数据保留在 `baseline_before_vectorization.json`，
 修复后数据在 `benchmark_results.json`，A/B 数据在 `ab_vectorization.json`。
 两轮使用同一台机器、同一个固定 seed、同一个 harness 与同一组环境规模；
-但**部分档位的 step count 不同**（OLD 全部 16 steps；NEW 为 64/64/48/24/12）。
-因此 §G 的比值是性能证据而非严格逐指令 A/B；严格同进程、同输入、交替测量的
-primitive A/B 见 §R.5。**没有任何档位被缩小以伪造提速**。
+但**所有档位的 step count 都不同**（OLD 一律 16 steps；NEW 为 64/64/48/24/12），
+因此连 `total transitions` 也不相等。§G 的比值是按每 transition 归一的性能证据，
+而非严格逐指令 A/B；严格同进程、同输入、交替测量的 primitive A/B 见 §R.5。
+**没有任何档位被缩小以伪造提速**（NEW 侧每档总 transitions 均 ≥ OLD 侧）。
 
 ### R.7 What was explicitly NOT done
 
@@ -919,6 +938,7 @@ New regression tests:
 pytest:
   422 passed / 0 failed / 0 skipped / 0 xfailed
   (M0 261 + M1 130 + overflow 31; was 391 before this fix)
+  -> 修复 §T 之后为 432 passed（新增 10 条 legal/terminal/live-view 回归）
 
 move_batch sanity:
   ~787 k boards/s (pre-fix, benchmark_results.json)
@@ -1100,3 +1120,194 @@ legal mask 与 terminal 定义**全部未改动**。
 * 未修改任何 M0 冻结文件；
 * 未移动 `m0-reference-pass`，未移动 `m1-fastenv-pass`；
 * 未开始 M2，未安装 PyTorch，未使用 tuple 8×6 checkpoint。
+
+---
+
+## T. Final Audit: Legal/Terminal Reward Isolation
+
+本节记录最后一次代码审查发现的四个问题及其修复。修复完成后：
+
+```text
+M1 = FINAL AUDITED PASS
+```
+
+**权威 tag**：`m1-fastenv-audited-pass`。
+`m1-fastenv-pass`（`a34e56b`）与 `m1-fastenv-final-pass`（`ce51f15`）自此仅作为
+**历史 snapshot** 保留，均未移动、未删除。
+
+### T.1 Audit finding 1 — legal/terminal 被 int64 reward 计算污染
+
+**问题**：`legal_mask_batch` / `is_terminal_batch` 通过
+`_move_all_actions_batch → _move_groups → _merge_left_rows` 计算 `moved`，而这条
+路径**顺带**执行了 reward 聚合与 int64 range check。合法性根本不需要 reward，
+却因此可能在真实 reward `> INT64_MAX` 时抛 `OverflowError`。
+
+**Reproducer（修复前，已实测复现）**：
+
+```text
+board = [61, 61, 61, 61] / 0 / 0 / 0
+
+M0  legal_mask(board)            -> [False  True  True  True]     正常返回
+M1  legal_mask_batch(board[None]) -> OverflowError: row merge reward aggregation ...
+M1  is_terminal_batch(board[None])-> OverflowError（同上）
+M1  step(DOWN)                    -> OverflowError（spawn 之后 terminal 计算触发）
+```
+
+`DOWN` 本身完全正常（reward = 0，四个 61 沿列下滑并不 merge）；抛异常的是
+terminal 检查里对 LEFT/RIGHT 这两个**假设动作**的 reward 求值。
+
+**Fix**：同一套 movement core 增加**内部模式**，不复制第二套 movement 实现，
+公共 API 完全不变：
+
+```text
+compute_rewards=True    move_batch / step
+                        完整 int64 契约（单 merge + row + board + score），一个检查未删
+
+compute_rewards=False   legal_mask_batch / is_terminal_batch
+                        同一套 pack / merge / pack / afterstate / moved
+                        不做任何 reward 运算
+                        仍强制执行 uint8 tile exponent overflow
+```
+
+两个 overflow 被拆成最小的两个函数：`_audit_tile_merge_overflow`（uint8，
+两种模式都跑）与 `_audit_merge_reward_overflow`（int64，仅 reward 模式）。
+`_move_all_actions_batch` 现在只返回 `moved`，不再构造无用的 reward 数组。
+
+核心不变量：**legal legality is independent of M1 int64 reward representation.**
+但 tile 上限不在豁免范围内 —— `[255, 255, 0, 0]` 走 `legal_mask_batch` 仍然
+`OverflowError`（与 M0 一致），绝不静默 wrap 成 `0`。
+
+### T.2 Audit finding 2 — `scores` live view 被破坏
+
+**问题**：int64 score 修复把提交写成了 `self._scores = new_scores`，**替换了
+backing ndarray**。此前 `env.scores` 交付出去的 view 因此永久停留在旧值 ——
+而被替换掉的正是文档承诺的 "read-only **live** view"。
+
+```text
+（修复前实测）
+backing preserved : False
+shares memory     : False
+view[0] = 0        env.scores[0] = 4      # view 已失效
+```
+
+**Fix**：`self._scores[:] = new_scores`（原地提交）。顺序保持
+move → 全部 range check → spawn → score commit → terminal，
+score commit **没有**被提前到 spawn 之前，所有 int64 检查仍在任何 state
+mutation 之前完成。
+
+### T.3 Audit finding 3 — boundary fuzz 存在过宽的 false-positive 断言
+
+**问题**：`test_randomized_boundary_differential_never_wraps` 中
+
+```python
+assert m0_unrepresentable or int(entry.max()) < 62
+```
+
+这个 `or` 分支允许「M0 明明可精确表示、M1 却抛异常」的情况静默通过。
+
+**Fix**：收紧为严格断言，不留任何例外：
+
+```python
+assert m0_unrepresentable, (
+    f"{context}: M1 raised although M0 represents the transition exactly"
+)
+```
+
+（实测该 `or` 分支在修复前后都不曾被触发 —— 它能触发的唯一途径正是上述
+false rejection，因此收紧后 6,300 条 fuzz 依然全绿，但断言不再有漏洞。）
+
+### T.4 Audit finding 4 — 4096 档 OLD/NEW step count 口径矛盾
+
+**问题**：报告 §G 用 `14,826 → 73,571`，却写成「两侧均为 4096 × 48 steps」。
+实际的冻结 JSON 是：
+
+```text
+baseline_before_vectorization.json  4096 env × 16 steps =  65,536 transitions
+benchmark_results.json              4096 env × 48 steps = 196,608 transitions
+```
+
+而且 OLD 侧**所有档位**都是 16 steps，NEW 侧是 64/64/48/24/12，因此连
+`total transitions` 都不相等（原表把它写成单一列，且声称「每档总 transitions
+相同」，两处均属错误）。
+
+**Fix**：只改文字，**未重新生成任何 JSON**。§G 表格拆成
+`OLD iters / NEW iters / OLD total / NEW total` 四列并显式写出
+`OLD = 4096 × 16`、`NEW = 4096 × 48`；§R.6 判据 2 与 §R 备注同步更正，
+明确该 throughput 比用于证明长期 steady-state 吞吐提升，**不属于严格逐指令
+A/B**（严格同进程 A/B 见 §R.5）。
+
+### T.5 Tests
+
+```text
+新增 10 条（全部放入 tests/test_m1_reward_overflow.py，未拆新模块）：
+
+test_legal_mask_does_not_depend_on_int64_reward_range
+test_is_terminal_is_isolated_from_the_int64_reward_range
+test_high_exponent_merge_legality_matches_m0[100-101]
+test_high_exponent_merge_legality_matches_m0[254-255]
+test_255_plus_255_tile_overflow_is_still_raised_by_legality
+test_move_batch_still_rejects_the_high_reward_alternative
+test_step_on_a_high_reward_alternative_board_completes
+test_high_reward_legal_differential_matches_m0          (500 boards, 60..254)
+test_scores_live_view_survives_step
+test_scores_live_view_survives_step_reset_where_and_reset
+
+原 31 条 overflow 测试全部保留，未删除、未降低、未放宽。
+pytest: 432 passed / 0 failed / 0 skipped / 0 xfailed
+        = 261 M0 + 161 M1 + 10 本次新增
+```
+
+新增 high-reward legal differential：500 块 board，exponent 集中在
+`60..254`（刻意避开 `255`，因为那是唯一 tile 不可表示的取值），
+`legal_mask_batch` / `is_terminal_batch` 与 M0 **逐位一致，0 mismatch**，
+且 **0 次 reward 相关 `OverflowError`**；其中 ≥ 30 个 action 的真实 reward
+超过 `INT64_MAX`，因此该 sweep 确实在检验「解耦」而非空跑。
+
+### T.6 Performance
+
+同进程交替 A/B，pre-fix = `ce51f15` 由 git 载入为第二个模块，
+同一输入、median of repeats：
+
+```text
+metric              BEFORE      AFTER     CHANGE
+move_batch        1,040,888  1,018,982     -2.1%     （噪声区间内，见下）
+legal_mask_batch    244,688    281,251    +14.9%
+is_terminal_batch   247,365    283,938    +14.8%
+4096 env            140,454    151,404     +7.8%
+```
+
+三轮重复中 `move_batch` 的变化为 `-4.7% / +2.6% / -2.1%`，即围绕 0 波动；
+reward 路径的代码除 gate 变量外逐行未变，该波动是机器噪声。
+legal / terminal 如预期**变快**（去掉了纯浪费的 reward 运算），而非变慢，
+因此不存在需要 profile 的 >10% 倒退。原始数据见 `sanity_after_audit.json`。
+未重跑完整 worker sweep（本次只改动 legal/terminal 内部路径与 score backing）。
+
+### T.7 What was explicitly NOT done
+
+* 未重写 movement architecture / `_pack_left_rows` / canonical movement；
+* 未改 `_LINE_ORDER` / `_LINE_INVERSE` / spawn 算法 / RNG 算法 / `reset` /
+  `reset_where` / Action / board encoding / D4；
+* 未改 `move_batch` / `legal_mask_batch` / `is_terminal_batch` /
+  `enumerate_spawns_batch` / `spawn_random_batch` / `apply_spawn_batch` /
+  `Fast2048BatchEnv` / 全部 `Batch*` dataclass 的名称、参数与返回语义；
+* 未删除或弱化 row / board / score 任何一级 checked-add；
+* 未建立第二套 adjacency legality 规则（legal 仍来自真实 movement semantics）；
+* 未引入 C++ / pybind11 / Cython / Numba / Triton / CUDA / Rust；
+* 未修改任何 M0 冻结文件，未移动任何既有 tag；
+* 未开始 M2，未安装 PyTorch，未使用 tuple 8×6 checkpoint。
+
+### T.8 Final Result
+
+```text
+Audit finding 1 (legal/terminal reward coupling):  FIXED
+Audit finding 2 (scores live view):                FIXED
+Audit finding 3 (fuzz false positive):             FIXED
+Audit finding 4 (16/48 benchmark wording):         FIXED
+
+M0 modified:  NO
+M2 started:   NO
+
+M1 = FINAL AUDITED PASS
+```
+
+权威 tag：`m1-fastenv-audited-pass`。

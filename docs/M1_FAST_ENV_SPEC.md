@@ -306,6 +306,55 @@ board[0] = 255, action = RIGHT  →  正常滑动，reward = 0，无异常
 因此 `OverflowError` 抛出时 board / score / RNG 都保持原样，
 不会出现「已经 spawn 但 reward 检查失败」的半提交状态。
 
+terminal 计算不再构成这类风险：它是合法性查询，走 **movement-only** 模式
+（见下），不做任何 reward 运算，因此 `step()` 不会在 spawn 之后因为
+「某个假设动作的 reward 超过 int64」而失败。这里只声明 reward 检查这一条
+真实保证，不宣称 spawn 之后任何失败都不可能。
+
+#### 两种内部模式：reward-producing 与 movement-only
+
+movement core **只有一套**（`_move_groups`），通过一个内部参数切换模式；
+**禁止**复制第二套 movement 实现。
+
+```text
+reward-producing mode            compute_rewards=True
+    move_batch / Fast2048BatchEnv.step
+    完整 int64 reward 契约：单 merge 检查 + row aggregate 检查
+    + board aggregate 检查 + score aggregate 检查，一个都不能少
+
+movement-only mode               compute_rewards=False
+    legal_mask_batch / is_terminal_batch
+    同一套 pack / merge / pack / afterstate / moved 语义
+    不做任何 reward 运算：不查 _MERGE_REWARD、不累计 row/board reward、
+    不做 int64 reward overflow 检查
+    仍然强制执行 uint8 tile exponent overflow（见下）
+```
+
+这条划分是**语义要求**，不是优化：
+
+> **legal legality is independent of M1 int64 reward representation.**
+
+`legal_mask_batch` 回答的是「这个动作会不会改变棋盘」，`is_terminal_batch`
+回答的是「有没有这样的动作」。这两个问题与「该动作的 reward 能不能塞进
+int64」无关。因此 `[61, 61, 61, 61]` 这类棋盘——其 LEFT/RIGHT reward 为
+`2**63`——必须能正常返回 legal / terminal，只有 `move_batch` / `step` 才
+抛 `OverflowError`。
+
+**但 tile representation 上限不在此列**：`255 + 255` 需要 exponent `256`，
+这在 M0 就抛 `OverflowError`，属于 movement 语义本身，因此 **两种模式都必须
+检查**。movement-only 关掉的只是 reward，不是「所有 overflow 检查」：
+
+```text
+board = [255, 255, 0, 0], action = LEFT
+    legal_mask_batch(...)  →  OverflowError   （tile 不可表示）
+    move_batch(...)        →  OverflowError   （tile 不可表示）
+```
+
+实现上两个检查被拆成最小的两个函数：`_audit_tile_merge_overflow`
+（uint8 exponent，两种模式都跑）与 `_audit_merge_reward_overflow`
+（int64 reward，只在 reward-producing 模式跑），各自只在自己的 gate
+被触发时才执行。
+
 ---
 
 ## 5. `legal_mask_batch`
@@ -323,6 +372,10 @@ legal_mask_batch(s)[i, a]  ⇔  move_without_spawn(s[i], a).moved
 M1 **不允许**另写一套「有没有空格 / 有没有相邻相同」的独立判定。
 实现上四个方向都真算一遍：正确性优先于少量额外算力。
 
+合法性**与 M1 的 int64 reward 表示无关**：本函数走 movement-only 模式，
+因此即使某个方向的真实 reward 超出 `int64`（例如 `[61, 61, 61, 61]` 的
+`2**63`），也照常返回结果，绝不抛 `OverflowError`。
+
 ---
 
 ## 6. `is_terminal_batch`
@@ -338,6 +391,9 @@ terminal = 没有合法动作 = ~legal_mask_batch(boards).any(axis=1)
 ```
 
 **禁止**用「棋盘已满」代替 terminal：满盘但有相邻相同 tile **不是** terminal。
+
+与 §5 同理：terminal 判定同样与 int64 reward 表示无关，不得因为某个假设动作
+的 reward 超出 `int64` 而失败。
 
 ---
 
@@ -515,6 +571,20 @@ copy_scores()  -> 真正的 (N,)  可写副本
 `boards` / `scores` 返回的 view 被设为 `writeable = False`，
 外部调用者无法直接破坏内部 state。
 
+**`scores` 的 live view 是硬性契约**：view 别名到 env 自己的 backing array，
+而 `step` / `reset` / `reset_where` 全部**原地**更新该 array
+（`self._scores[:] = ...`，**禁止** `self._scores = ...` 重新绑定）。
+因此先前取得的 view 在整个 env 生命周期内始终反映最新 score：
+
+```python
+view = env.scores
+env.step(...)          # view 立即反映新 score
+env.reset_where(mask)  # 同上
+env.reset(seed=...)    # 同上
+```
+
+`boards` 同理不得替换 backing array。
+
 ### 11.3 `reset(seed=None)`
 
 * 重置**全部** env：board 清零、`score = 0`；
@@ -570,6 +640,28 @@ legal   :  state = afterstate + 一次随机 spawn、score += reward
   何时 reset 由调用者 `reset_where(...)` 显式决定。
 * `actions` 的校验规则与 `move_batch` 相同（拒绝 float / bool / string / 越界 / 形状错）。
 * 返回的数组都是独立缓冲，调用者修改它们不会影响内部 state。
+
+**原子性顺序（固定，不得调换）**：
+
+```text
+move
+↓
+全部 reward / score range check
+↓
+spawn（写 board、消耗 RNG）
+↓
+self._scores[:] = new_scores       # 原地提交，保持 live view
+↓
+在 s' 上计算 terminated            # movement-only，无 reward 运算
+```
+
+score commit **不得**提前到 spawn 之前；所有 int64 检查必须在任何
+state mutation 之前完成。
+
+`terminated` 在 spawn **之后**计算（与 M0 对齐，语义在 s' 上），
+且该计算走 movement-only 路径：它不会因为「某个假设动作的 reward 超过
+int64」而在 spawn 之后抛异常。这是对 reward 检查的准确陈述，
+不构成「spawn 之后任何失败都不可能」的一般性保证。
 
 ---
 

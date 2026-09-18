@@ -428,28 +428,40 @@ def _pack_left_rows(rows: np.ndarray) -> np.ndarray:
     return packed.reshape(rows.shape)
 
 
-def _merge_left_rows(packed: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+def _merge_left_rows(
+    packed: np.ndarray, *, compute_rewards: bool
+) -> Tuple[np.ndarray, Optional[np.ndarray]]:
     """Merge equal adjacent tiles towards column 0, across the whole batch.
 
     ``packed`` must already be pack-left (all zeros on the right).  Returns
     ``(merged, reward)``:
 
     * ``merged``: ``(R, 4)`` ``uint8``, the merged and re-packed rows;
-    * ``reward``: ``(R,)`` ``int64``, the exact merge reward of each row.
+    * ``reward``: ``(R,)`` ``int64``, the exact merge reward of each row, or
+      ``None`` when ``compute_rewards`` is false.
+
+    ``compute_rewards=False`` is the **movement-only** mode used by
+    :func:`legal_mask_batch` and :func:`is_terminal_batch`.  The merge itself is
+    performed exactly as in reward mode -- the same frozen rule, the same
+    re-packing -- but the :data:`_MERGE_REWARD` lookup and the checked row
+    aggregation are skipped entirely, because legality asks "did the board
+    change" and never "does the reward fit in ``int64``".  Nothing is emulated
+    with Python ``int`` or ``dtype=object``; the arithmetic is simply not needed.
 
     The frozen rule is applied with a per-row *one-merge-at-a-time* block mask:
     boundaries ``0``, ``1`` and ``2`` are visited left to right, and a row whose
     boundary just merged is blocked at the next boundary.  That is what makes
     ``[1,1,1,1] -> [2,2,0,0]`` instead of ``[2,1,1]``-style cascades.
 
-    The caller must have run :func:`_audit_merge_overflow` first: this function
-    indexes :data:`_MERGE_REWARD` with the pre-merge exponents and adds one to
-    them, both of which are only defined below :data:`MAX_SAFE_MERGE_EXPONENT`.
+    The caller must have run the audits first: the reward path indexes
+    :data:`_MERGE_REWARD` with the pre-merge exponents, which is only defined
+    below :data:`MAX_SAFE_MERGE_EXPONENT`, and both paths add one to an exponent,
+    which is only defined below :data:`MAX_EXPONENT`.
     """
     work = np.array(packed, dtype=np.uint8, copy=True)
     row_count = work.shape[0]
     blocked = np.zeros(row_count, dtype=bool)
-    reward = np.zeros(row_count, dtype=np.int64)
+    reward = np.zeros(row_count, dtype=np.int64) if compute_rewards else None
 
     for _column in range(BOARD_COLUMNS - 1):
         can_merge = (
@@ -457,23 +469,24 @@ def _merge_left_rows(packed: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         )
         if can_merge.any():
             left = work[:, _column]
-            # A single row can merge at two different boundaries, so the *row
-            # total* can exceed int64 even when every individual merge fits:
-            # ``[61, 61, 61, 61]`` merges twice, and ``2**62 + 2**62 = 2**63``
-            # does not fit.  The range check therefore runs **before** the
-            # addition -- comparing against the post-check result would be too
-            # late.  See :func:`_checked_add_nonnegative_int64` for why
-            # ``np.errstate`` cannot be used for this.
-            increment = _MERGE_REWARD[left[can_merge]]
-            if np.any(increment > (_INT64_MAX - reward[can_merge])):
-                raise OverflowError(
-                    "row merge reward aggregation: the true reward does not fit "
-                    f"in numpy.int64 (max {_INT64_MAX}); M1 refuses to emit a "
-                    "silently wrapped reward"
-                )
-            reward[can_merge] += increment
+            if compute_rewards:
+                # A single row can merge at two different boundaries, so the *row
+                # total* can exceed int64 even when every individual merge fits:
+                # ``[61, 61, 61, 61]`` merges twice, and ``2**62 + 2**62 = 2**63``
+                # does not fit.  The range check therefore runs **before** the
+                # addition -- comparing against the post-check result would be too
+                # late.  See :func:`_checked_add_nonnegative_int64` for why
+                # ``np.errstate`` cannot be used for this.
+                increment = _MERGE_REWARD[left[can_merge]]
+                if np.any(increment > (_INT64_MAX - reward[can_merge])):
+                    raise OverflowError(
+                        "row merge reward aggregation: the true reward does not fit "
+                        f"in numpy.int64 (max {_INT64_MAX}); M1 refuses to emit a "
+                        "silently wrapped reward"
+                    )
+                reward[can_merge] += increment
             # ``left`` is a copy, so ``left + 1`` cannot wrap in the array; the
-            # overflow audit has already rejected any exponent that could.
+            # uint8 tile audit has already rejected any exponent that could.
             work[can_merge, _column] = left[can_merge] + np.uint8(1)
             work[can_merge, _column + 1] = 0
         blocked = can_merge
@@ -481,17 +494,18 @@ def _merge_left_rows(packed: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     return _pack_left_rows(work), reward
 
 
-def _audit_merge_overflow(packed: np.ndarray) -> None:
-    """Reject any merge the fast path cannot represent exactly.
+def _audit_tile_merge_overflow(packed: np.ndarray) -> None:
+    """Reject any merge whose resulting *tile* does not fit in ``uint8``.
 
-    Called only when the block contains an exponent above
-    :data:`MAX_SAFE_MERGE_EXPONENT`, which is the one case where either limit can
-    be reached.  Two limits exist, mirroring M0 and the previous M1 kernel:
+    ``255 + 255`` would need exponent ``256``.  M0 raises for that, so M1 must
+    raise too and must never silently wrap to ``0``.
 
-    1. **uint8 exponent limit** -- ``255 + 255`` would need exponent ``256``; M0
-       raises and M1 must never wrap to ``0``.
-    2. **int64 reward limit** -- ``2 ** (e + 1)`` must fit in ``int64``, hence
-       ``e + 1 <= 62``.  M0 has no such limit (Python ``int`` reward).
+    This is part of the **tile movement semantics**, not a reward limit, so it
+    runs in *both* movement modes -- including the movement-only mode behind
+    :func:`legal_mask_batch` / :func:`is_terminal_batch`.
+
+    Called only when the block contains an exponent of at least
+    :data:`MAX_EXPONENT`, the one case in which this limit can be reached.
     """
     work = np.array(packed, dtype=np.uint8, copy=True)
     for _column in range(BOARD_COLUMNS - 1):
@@ -505,6 +519,30 @@ def _audit_merge_overflow(packed: np.ndarray) -> None:
                     f"exponent {exponent + 1} does not fit in numpy.uint8 "
                     f"(max {MAX_EXPONENT})"
                 )
+            # Consume the pair so the next boundary sees the same state as the
+            # real merge would (a freshly created tile never merges again).
+            work[merging, _column] = left[merging] + np.uint8(1)
+            work[merging, _column + 1] = 0
+
+
+def _audit_merge_reward_overflow(packed: np.ndarray) -> None:
+    """Reject any merge whose *reward* does not fit in ``int64``.
+
+    A single merge at exponent ``>= MAX_SAFE_MERGE_EXPONENT`` needs ``2 ** 63``
+    or more.  M0 has no such limit (its reward is a Python ``int``), so this is a
+    pure M1 representation limit -- which is exactly why it is checked only on
+    the reward-producing path (:func:`move_batch`, :meth:`Fast2048BatchEnv.step`)
+    and never on the legality path.
+
+    Called only when the block contains an exponent of at least
+    :data:`MAX_SAFE_MERGE_EXPONENT`.
+    """
+    work = np.array(packed, dtype=np.uint8, copy=True)
+    for _column in range(BOARD_COLUMNS - 1):
+        left = work[:, _column]
+        merging = (left != 0) & (left == work[:, _column + 1])
+        if merging.any():
+            exponent = int(left[merging].max())
             if exponent >= MAX_SAFE_MERGE_EXPONENT:
                 raise OverflowError(
                     f"merge of two exponent-{exponent} tiles needs a reward of "
@@ -518,11 +556,30 @@ def _audit_merge_overflow(packed: np.ndarray) -> None:
             work[merging, _column + 1] = 0
 
 
-def _move_groups(boards: np.ndarray, group_actions: np.ndarray):
+def _move_groups(
+    boards: np.ndarray, group_actions: np.ndarray, *, compute_rewards: bool
+):
     """Vectorized movement for one batch, optionally covering all four actions.
 
     ``group_actions`` is ``(N,)`` with values in ``0..3``.  Returns
-    ``(afterstates, rewards, moved)`` shaped ``(N, 16)``, ``(N,)``, ``(N,)``.
+    ``(afterstates, rewards, moved)`` shaped ``(N, 16)``, ``(N,)``, ``(N,)``;
+    ``rewards`` is ``None`` when ``compute_rewards`` is false.
+
+    There is exactly **one** movement kernel with two internal modes -- never a
+    second movement implementation:
+
+    * **reward-producing** (``compute_rewards=True``, used by :func:`move_batch`
+      and :meth:`Fast2048BatchEnv.step`): the full ``int64`` reward contract,
+      including the checked row and board aggregations;
+    * **movement-only** (``compute_rewards=False``, used by
+      :func:`legal_mask_batch` and :func:`is_terminal_batch`): identical packing
+      and merging, and the identical ``uint8`` tile audit, but no reward
+      arithmetic whatsoever.
+
+    The distinction matters because legality is *defined* as "the move changed the
+    board".  Whether the reward of that move happens to fit in ``int64`` is a
+    separate, M1-specific question and must never turn a legal query into an
+    ``OverflowError``.
 
     The batch is split into at most four action groups (four fixed iterations).
     Inside a group every board is processed at once: one gather to canonical
@@ -531,7 +588,7 @@ def _move_groups(boards: np.ndarray, group_actions: np.ndarray):
     """
     board_count = boards.shape[0]
     afterstates = np.empty((board_count, CELL_COUNT), dtype=np.uint8)
-    rewards = np.zeros(board_count, dtype=np.int64)
+    rewards = np.zeros(board_count, dtype=np.int64) if compute_rewards else None
     moved = np.zeros(board_count, dtype=bool)
 
     for action in range(4):
@@ -552,36 +609,46 @@ def _move_groups(boards: np.ndarray, group_actions: np.ndarray):
         lines = group.reshape(-1)[canonical_index].reshape(-1, BOARD_COLUMNS)
 
         packed = _pack_left_rows(lines)
-        # The audit must run *before* the merge, because the merge itself indexes
-        # the reward table with the pre-merge exponents.  The gate is ``>=``: an
-        # exponent of exactly ``MAX_SAFE_MERGE_EXPONENT`` would already need a
-        # reward of ``2 ** 63``, which does not fit in ``int64``.
-        if int(packed.max(initial=0)) >= MAX_SAFE_MERGE_EXPONENT:
-            _audit_merge_overflow(packed)
+        # Both audits must run *before* the merge, because the merge itself indexes
+        # the reward table with the pre-merge exponents and adds one to them.  The
+        # uint8 tile audit is movement semantics and therefore runs in both modes;
+        # the int64 reward audit is an M1 representation limit and runs only where
+        # a reward is actually produced.  Each gate is ``>=``: an exponent of
+        # exactly ``MAX_SAFE_MERGE_EXPONENT`` would already need a reward of
+        # ``2 ** 63``, and two tiles of exactly ``MAX_EXPONENT`` would need
+        # exponent ``256``.
+        max_exponent = int(packed.max(initial=0))
+        if max_exponent >= MAX_EXPONENT:
+            _audit_tile_merge_overflow(packed)
+        if compute_rewards and max_exponent >= MAX_SAFE_MERGE_EXPONENT:
+            _audit_merge_reward_overflow(packed)
 
-        merged, line_reward = _merge_left_rows(packed)
+        merged, line_reward = _merge_left_rows(
+            packed, compute_rewards=compute_rewards
+        )
 
-        # Lines ``4 * i .. 4 * i + 3`` all belong to board ``i`` of the group.
-        # A board can merge on several lines at once, so the board total needs the
-        # same checked aggregation as the row total: ``.sum(axis=1)`` would wrap
-        # silently (see :func:`_checked_add_nonnegative_int64`).  The loop is the
-        # fixed ``range(BOARD_COLUMNS)`` over the four lines of one board, never
-        # over boards.  ``headroom`` is carried forward instead of being
-        # recomputed, so each line costs one comparison and one add.
-        line_rewards = line_reward.reshape(group_size, BOARD_COLUMNS)
-        board_reward = np.zeros(group_size, dtype=np.int64)
-        headroom = np.full(group_size, _INT64_MAX, dtype=np.int64)
-        for column in range(BOARD_COLUMNS):
-            line = line_rewards[:, column]
-            if np.any(line > headroom):
-                raise OverflowError(
-                    "board merge reward aggregation: the true reward does not fit "
-                    f"in numpy.int64 (max {_INT64_MAX}); M1 refuses to emit a "
-                    "silently wrapped reward"
-                )
-            board_reward += line
-            headroom -= line
-        rewards[selected] = board_reward
+        if compute_rewards:
+            # Lines ``4 * i .. 4 * i + 3`` all belong to board ``i`` of the group.
+            # A board can merge on several lines at once, so the board total needs
+            # the same checked aggregation as the row total: ``.sum(axis=1)`` would
+            # wrap silently (see :func:`_checked_add_nonnegative_int64`).  The loop
+            # is the fixed ``range(BOARD_COLUMNS)`` over the four lines of one
+            # board, never over boards.  ``headroom`` is carried forward instead of
+            # being recomputed, so each line costs one comparison and one add.
+            line_rewards = line_reward.reshape(group_size, BOARD_COLUMNS)
+            board_reward = np.zeros(group_size, dtype=np.int64)
+            headroom = np.full(group_size, _INT64_MAX, dtype=np.int64)
+            for column in range(BOARD_COLUMNS):
+                line = line_rewards[:, column]
+                if np.any(line > headroom):
+                    raise OverflowError(
+                        "board merge reward aggregation: the true reward does not fit "
+                        f"in numpy.int64 (max {_INT64_MAX}); M1 refuses to emit a "
+                        "silently wrapped reward"
+                    )
+                board_reward += line
+                headroom -= line
+            rewards[selected] = board_reward
 
         # Scatter the canonical board back to real board indices.  ``moved`` is
         # exactly "the board changed", so it is read straight off the afterstate.
@@ -658,33 +725,37 @@ def move_batch(boards: np.ndarray, actions: np.ndarray) -> BatchMoveResult:
 def _move_batch(boards: np.ndarray, actions: np.ndarray) -> BatchMoveResult:
     """``move_batch`` core for already validated inputs.
 
-    Delegates the whole batch to :func:`_move_groups`, which is fully vectorized
-    across boards; the only Python loop in the movement path is the fixed
-    four-iteration loop over actions.
+    Delegates the whole batch to :func:`_move_groups` in **reward-producing**
+    mode, which is fully vectorized across boards; the only Python loop in the
+    movement path is the fixed four-iteration loop over actions.
     """
-    afterstates, rewards, moved = _move_groups(boards, actions)
+    afterstates, rewards, moved = _move_groups(
+        boards, actions, compute_rewards=True
+    )
     return BatchMoveResult(afterstates=afterstates, rewards=rewards, moved=moved)
 
 
-def _move_all_actions_batch(boards: np.ndarray):
-    """Run all four actions on every board in one vectorized pass.
-
-    Returns ``(moved, rewards)`` with shapes ``(N, 4)`` and ``(N, 4)``.
+def _move_all_actions_batch(boards: np.ndarray) -> np.ndarray:
+    """``(N, 4)`` bool: "this action changed the board", for all four actions.
 
     Used by :func:`legal_mask_batch` and :func:`is_terminal_batch`, which are both
     defined purely in terms of "did the move change the board" -- so they share
     exactly the same vectorized movement core as :func:`move_batch` and never
     introduce a second legality rule.
+
+    The core runs in **movement-only** mode on purpose.  Legality does not depend
+    on the merge reward, so this path must not be able to raise ``OverflowError``
+    because some hypothetical action's reward does not fit in ``int64``; that is a
+    limit of M1's reward representation, not of the game.  The ``uint8`` tile audit
+    still applies, since it is part of the movement semantics itself.
     """
     board_count = boards.shape[0]
     moved = np.zeros((board_count, 4), dtype=bool)
-    rewards = np.zeros((board_count, 4), dtype=np.int64)
     for action in range(4):
         actions = np.full(board_count, action, dtype=np.uint8)
-        _, action_rewards, action_moved = _move_groups(boards, actions)
-        rewards[:, action] = action_rewards
+        _, _, action_moved = _move_groups(boards, actions, compute_rewards=False)
         moved[:, action] = action_moved
-    return moved, rewards
+    return moved
 
 
 # --------------------------------------------------------------------------- #
@@ -702,10 +773,16 @@ def legal_mask_batch(boards: np.ndarray) -> np.ndarray:
     There is deliberately **no** second, independent legality rule (no "has an
     empty cell" / "has an adjacent equal pair" shortcut).  All four moves are
     computed in full; correctness wins over the extra arithmetic.
+
+    Legality is **independent of M1's int64 reward representation**: the shared
+    movement core runs in movement-only mode here, so a board whose move would
+    produce a reward beyond ``int64`` (for example ``[61, 61, 61, 61]``, whose
+    move pays ``2 ** 63``) still answers the legality question normally instead of
+    raising ``OverflowError``.  The ``uint8`` tile limit is *not* suspended: an
+    actual ``255 + 255`` merge still raises, exactly as in M0.
     """
     board_array = _as_boards(boards)
-    moved, _ = _move_all_actions_batch(board_array)
-    return moved
+    return _move_all_actions_batch(board_array)
 
 
 def is_terminal_batch(boards: np.ndarray) -> np.ndarray:
@@ -714,6 +791,9 @@ def is_terminal_batch(boards: np.ndarray) -> np.ndarray:
     A full board that still contains two adjacent equal tiles is **not** terminal,
     so this is ``~legal_mask_batch(boards).any(axis=1)`` and never a "board is
     full" test.
+
+    For the same reason as :func:`legal_mask_batch`, the terminal verdict never
+    depends on whether some hypothetical action's reward would fit in ``int64``.
     """
     return ~legal_mask_batch(boards).any(axis=1)
 
@@ -1117,7 +1197,15 @@ class Fast2048BatchEnv:
 
     @property
     def scores(self) -> np.ndarray:
-        """Read-only live view ``(N,)`` ``int64`` of the accumulated scores."""
+        """Read-only live view ``(N,)`` ``int64`` of the accumulated scores.
+
+        "Live" is a real guarantee, not a figure of speech: the view aliases the
+        environment's own backing array, and ``step`` / ``reset`` /
+        ``reset_where`` all update that array **in place**.  A view taken here
+        therefore keeps reflecting the current scores for the whole lifetime of
+        the environment.  The view itself is write-protected; use
+        :meth:`copy_scores` for an independent, writable snapshot.
+        """
         view = self._scores.view()
         view.flags.writeable = False
         return view
@@ -1191,6 +1279,13 @@ class Fast2048BatchEnv:
         the scores and the RNG are all still untouched -- a step either happens
         completely or not at all.
 
+        The terminal calculation that runs *after* the spawn cannot reintroduce a
+        failure of that kind: it is a legality query, and legality is computed by
+        the movement-only path, which performs no reward arithmetic.  A step is
+        therefore never aborted after the spawn by an ``int64`` reward limit of
+        some hypothetical alternative action.  (That is a statement about the
+        reward checks only; it is not a blanket "nothing can fail after a spawn".)
+
         Performance note: the local legal mask of this step's board is the same
         work ``is_terminal_batch`` needs for the *next* step's board, so it is
         pipelined -- each step computes the mask once and reuses the previous
@@ -1224,7 +1319,11 @@ class Fast2048BatchEnv:
             spawn_indices[rows] = indices
             spawn_exponents[rows] = exponents
 
-        self._scores = new_scores
+        # Commit in place: ``self.scores`` is documented as a *live* view, so the
+        # backing ndarray object must survive the step.  Rebinding ``self._scores``
+        # to the fresh array would silently leave every previously handed-out view
+        # pointing at the stale scores.
+        self._scores[:] = new_scores
 
         # M0 evaluates terminal on ``s'``, the board *after* the spawn, so the
         # status is computed here on the current buffer and then cached: the next

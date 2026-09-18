@@ -16,6 +16,13 @@ M1's contract is therefore: every reward either is the exact non-negative
 ``int64`` value, or the call raises ``OverflowError``.  This file pins three
 aggregation levels (row, board, score) plus the atomicity of ``step``.
 
+The final-audit sections at the end extend the same file to the *inverse*
+requirement: the ``int64`` reward limit is a property of **reward-producing**
+calls only.  ``legal_mask_batch`` / ``is_terminal_batch`` answer a movement
+question and must stay independent of it, while the ``uint8`` tile limit (a
+``255 + 255`` merge) stays enforced everywhere.  ``scores`` must also remain the
+live view its docstring promises.
+
 Exact boundary values used below (computed by hand, per spec §41)::
 
     INT64_MAX  = 9223372036854775807   = 2**63 - 1
@@ -30,9 +37,21 @@ import numpy as np
 import pytest
 
 from game2048 import Action, move_without_spawn
-from game2048.fast_env import Fast2048BatchEnv, move_batch
+from game2048.fast_env import (
+    Fast2048BatchEnv,
+    is_terminal_batch,
+    legal_mask_batch,
+    move_batch,
+)
 
-from _m1_helpers import SEED, batch, board, board_str
+from _m1_helpers import (
+    SEED,
+    batch,
+    board,
+    board_str,
+    reference_legal_mask,
+    reference_terminal,
+)
 
 DIRECTIONS = [Action.UP, Action.DOWN, Action.LEFT, Action.RIGHT]
 
@@ -401,8 +420,14 @@ def test_randomized_boundary_differential_never_wraps():
             )
         except OverflowError:
             raised += 1
-            assert m0_unrepresentable or int(entry.max()) < 62, (
-                f"{context}: M1 raised although M0 represents the reward exactly"
+            # Strict: an ``OverflowError`` is only ever acceptable when M0 itself
+            # cannot represent the transition.  An earlier version of this test
+            # also accepted any board whose maximum exponent was below 62, which
+            # would have hidden a genuine false rejection -- a transition that M0
+            # represents exactly but that M1 refuses.  There is no third outcome.
+            assert m0_unrepresentable, (
+                f"{context}: M1 raised although M0 represents "
+                "the transition exactly"
             )
             continue
 
@@ -534,3 +559,267 @@ def test_ordinary_seeded_trajectories_are_still_reproducible():
 
     assert first_scores[-1].max() > 0, "the rollout never scored, check is vacuous"
     assert all(int(score) >= 0 for score in first_scores[-1]), "score went negative"
+
+
+# --------------------------------------------------------------------------- #
+# 8. Final audit: legal / terminal must be isolated from the int64 reward limit
+#
+# Legality is *defined* as "the move changed the board" (M0's rule).  Whether the
+# reward of that move happens to fit in ``np.int64`` is a separate, M1-specific
+# question.  Before this fix the legality path ran the reward aggregation as a
+# side effect, so a legal query about ``[61, 61, 61, 61]`` raised ``OverflowError``
+# even though M0 answers it without complaint.
+# --------------------------------------------------------------------------- #
+
+#: The critical reproducer board: its LEFT/RIGHT move pays ``2 ** 63``, one past
+#: ``int64``, while UP/DOWN are perfectly ordinary and reward-free.
+HIGH_REWARD_ALTERNATIVE = board((61, 61, 61, 61), (0,) * 4, (0,) * 4, (0,) * 4)
+
+
+def test_legal_mask_does_not_depend_on_int64_reward_range():
+    """The critical reproducer: legality must not care about the reward range.
+
+    ``[61, 61, 61, 61]`` on the top row: UP does nothing (illegal), DOWN slides the
+    row to the bottom, LEFT/RIGHT merge it into ``[62, 62, 0, 0]`` and pay
+    ``2 ** 63`` -- which does not fit in ``int64``.  M0 answers the legality
+    question normally, so M1 must too, with no ``OverflowError``.
+    """
+    fast = legal_mask_batch(HIGH_REWARD_ALTERNATIVE[None, :])[0]
+    reference = reference_legal_mask(HIGH_REWARD_ALTERNATIVE)
+
+    assert np.array_equal(fast, reference), (
+        f"legal mismatch: fast={fast.tolist()} ref={reference.tolist()}"
+    )
+    # Pin the expected answer, so a shared bug in both paths cannot pass this.
+    assert reference.tolist() == [False, True, True, True]
+
+
+def test_is_terminal_is_isolated_from_the_int64_reward_range():
+    """``is_terminal_batch`` must survive the same board, and agree with M0."""
+    fast = is_terminal_batch(HIGH_REWARD_ALTERNATIVE[None, :])[0]
+    reference = reference_terminal(HIGH_REWARD_ALTERNATIVE)
+
+    assert bool(fast) == reference
+    assert reference is False  # not terminal: DOWN/LEFT/RIGHT all change the board
+
+
+@pytest.mark.parametrize(
+    "exponent, expected_afterstate",
+    [(100, 101), (254, 255)],
+)
+def test_high_exponent_merge_legality_matches_m0(exponent, expected_afterstate):
+    """Exponents whose reward dwarfs ``int64`` are still legal movements.
+
+    The afterstate exponent (``101``, ``255``) still fits in ``uint8``, so the move
+    is representable and legal even though its reward is astronomically past
+    ``int64``.  ``legal_mask_batch`` must agree with M0 in every direction.
+    """
+    entries = board((exponent, exponent, 0, 0), (0,) * 4, (0,) * 4, (0,) * 4)
+
+    fast = legal_mask_batch(entries[None, :])[0]
+    reference = reference_legal_mask(entries)
+    assert np.array_equal(fast, reference), (
+        f"exponent {exponent}: fast={fast.tolist()} ref={reference.tolist()}"
+    )
+
+    # The merge really is representable: M0 produces the expected afterstate.
+    merged = move_without_spawn(entries, Action.LEFT)
+    assert int(merged.afterstate[0]) == expected_afterstate
+    assert merged.reward > INT64_MAX, "case is vacuous: reward fits in int64"
+
+    # ``move_batch`` keeps the int64 contract for exactly the same board.
+    with pytest.raises(OverflowError):
+        move_batch(entries[None, :], np.array([int(Action.LEFT)], dtype=np.uint8))
+
+
+def test_255_plus_255_tile_overflow_is_still_raised_by_legality():
+    """A *tile* that cannot be represented must still fail, even in legal mode.
+
+    Only the reward limit is dropped on the legality path -- the ``uint8`` exponent
+    limit is part of the movement semantics.  ``255 + 255`` needs exponent ``256``;
+    M0 raises, so M1 must raise too and must never silently wrap to ``0``.
+    """
+    entries = board((255, 255, 0, 0), (0,) * 4, (0,) * 4, (0,) * 4)
+
+    with pytest.raises(OverflowError):
+        move_without_spawn(entries, Action.LEFT)  # M0's own verdict
+
+    with pytest.raises(OverflowError):
+        legal_mask_batch(entries[None, :])
+    with pytest.raises(OverflowError):
+        is_terminal_batch(entries[None, :])
+    with pytest.raises(OverflowError):
+        move_batch(entries[None, :], np.array([int(Action.LEFT)], dtype=np.uint8))
+
+
+def test_move_batch_still_rejects_the_high_reward_alternative():
+    """Decoupling the legality path must not weaken ``move_batch`` itself.
+
+    The very same board whose legality is now answerable still raises on the
+    reward-producing path -- no reward check was removed, only bypassed where no
+    reward is produced.
+    """
+    entries = batch([HIGH_REWARD_ALTERNATIVE, np.zeros(16, dtype=np.uint8)])
+    for action in (Action.LEFT, Action.RIGHT):
+        with pytest.raises(OverflowError):
+            move_batch(entries, np.array([int(action), 0], dtype=np.uint8))
+
+    # UP/DOWN are legal and pay nothing, so they must still work.
+    result = move_batch(entries, np.array([int(Action.DOWN), 0], dtype=np.uint8))
+    assert int(result.rewards[0]) == 0
+    assert bool(result.moved[0]) is True
+
+
+def test_step_on_a_high_reward_alternative_board_completes():
+    """The post-spawn terminal check must not raise on a hypothetical reward.
+
+    ``DOWN`` on ``[61, 61, 61, 61]`` is legal and pays ``0``: there is no int64
+    problem in the step itself.  The failure used to happen *after* the spawn, when
+    the terminal calculation asked whether LEFT/RIGHT were legal -- and their
+    ``2 ** 63`` reward tripped the aggregation.  The step must now complete.
+    """
+    env = Fast2048BatchEnv(1, seed=SEED)
+    env._boards[0] = HIGH_REWARD_ALTERNATIVE
+    env.reset_where(np.zeros(1, dtype=bool))
+
+    result = env.step(np.array([int(Action.DOWN)], dtype=np.uint8))
+
+    assert bool(result.legal[0]) is True
+    assert int(result.rewards[0]) == 0
+    assert int(result.spawn_indices[0]) >= 0, "a legal move must spawn exactly once"
+    assert int(result.spawn_exponents[0]) in (1, 2)
+
+    # ``terminated`` is M0's verdict on the *formal* state, after the spawn.
+    assert bool(result.terminated[0]) == reference_terminal(result.states[0])
+
+    # And the reported state is still a normal board for every batch primitive.
+    mask = legal_mask_batch(result.states)
+    assert mask.shape == (1, 4)
+    assert mask.dtype == np.bool_
+    assert bool(is_terminal_batch(result.states)[0]) == bool(result.terminated[0])
+
+    # The four 61s slid to the bottom row *without* merging: they are side by side
+    # in a row, and DOWN slides along columns, so each column holds a single tile.
+    # (That is exactly why this step's own reward is 0 -- the ``2 ** 63`` belongs to
+    # the hypothetical LEFT/RIGHT of the terminal check.)
+    expected = move_without_spawn(HIGH_REWARD_ALTERNATIVE, Action.DOWN)
+    assert np.array_equal(result.afterstates[0], expected.afterstate)
+    assert expected.reward == 0
+    assert [int(value) for value in result.afterstates[0][12:]] == [61, 61, 61, 61]
+    assert [int(value) for value in result.afterstates[0][:12]] == [0] * 12
+
+
+def test_high_reward_legal_differential_matches_m0():
+    """>=500 high-exponent boards: legality agrees with M0, no reward exception.
+
+    Exponent band ``60..254`` deliberately excludes ``255``, the only value whose
+    merge cannot be represented as a tile.  Every case here is therefore a legal
+    question M0 can answer, and several of them pay far more than ``int64`` -- the
+    exact situation that used to make the legality path raise.
+    """
+    rng = np.random.default_rng(SEED)
+    boards: list[np.ndarray] = []
+
+    # (a) Guaranteed merges of two equal high-exponent pairs, laid out
+    #     destination-first for every action, so the action really merges them.
+    for action in DIRECTIONS:
+        for exponent in (60, 61, 62, 63, 100, 150, 200, 253, 254):
+            partner = int(rng.integers(60, 255))
+            boards.append(_rotated_for(action, (exponent, exponent), (partner, partner)))
+
+    # (b) Boards that merely *contain* high exponents, merged or not.
+    while len(boards) < 500:
+        grid = rng.integers(60, 255, size=(4, 4)).astype(np.uint8)
+        grid[rng.random((4, 4)) < 0.45] = 0
+        boards.append(grid.reshape(16))
+
+    entries = batch(boards[:500])
+    fast = legal_mask_batch(entries)
+    terminal = is_terminal_batch(entries)
+
+    assert fast.shape == (500, 4) and fast.dtype == np.bool_
+    assert terminal.shape == (500,) and terminal.dtype == np.bool_
+
+    beyond_int64 = 0
+    for index in range(entries.shape[0]):
+        entry = entries[index]
+        expected = reference_legal_mask(entry)
+        assert np.array_equal(fast[index], expected), (
+            f"sample={index} board={board_str(entry)}\n"
+            f"  fast={fast[index].tolist()}\n  ref ={expected.tolist()}"
+        )
+        assert bool(terminal[index]) == reference_terminal(entry), (
+            f"sample={index} board={board_str(entry)}: terminal mismatch"
+        )
+        for action in DIRECTIONS:
+            if move_without_spawn(entry, action).reward > INT64_MAX:
+                beyond_int64 += 1
+
+    assert beyond_int64 >= 30, (
+        f"only {beyond_int64} action rewards exceeded int64; the sweep does not "
+        "actually exercise the decoupling it is meant to prove"
+    )
+
+
+# --------------------------------------------------------------------------- #
+# 9. Final audit: ``scores`` must stay a real live view
+# --------------------------------------------------------------------------- #
+
+
+def _scoring_board() -> np.ndarray:
+    """Top row ``[1, 1, 0, 0]``: LEFT merges it and scores ``4``."""
+    return board((1, 1, 0, 0), (0,) * 4, (0,) * 4, (0,) * 4)
+
+
+def test_scores_live_view_survives_step():
+    """A ``scores`` view taken before a step must reflect the new score.
+
+    Regression guard: committing with ``self._scores = new_scores`` replaced the
+    backing ndarray, silently leaving every previously handed-out view -- a public,
+    documented API -- frozen on the old values.
+    """
+    env = Fast2048BatchEnv(1, seed=SEED)
+    env._boards[0] = _scoring_board()
+    env.reset_where(np.zeros(1, dtype=bool))
+
+    backing = env._scores
+    view = env.scores
+    assert view.flags.writeable is False
+    assert int(view[0]) == 0
+
+    env.step(np.array([int(Action.LEFT)], dtype=np.uint8))
+
+    assert env._scores is backing, "the backing scores ndarray was replaced"
+    assert np.shares_memory(view, env._scores), "the view no longer aliases scores"
+    assert int(view[0]) == int(env.scores[0])
+    assert int(view[0]) > 0, "the live view did not follow the score update"
+
+
+def test_scores_live_view_survives_step_reset_where_and_reset():
+    """One view must stay live across ``step``, ``reset_where`` and ``reset``."""
+    env = Fast2048BatchEnv(2, seed=SEED)
+    env._boards[0] = _scoring_board()
+    env._boards[1] = _scoring_board()
+    env.reset_where(np.zeros(2, dtype=bool))
+
+    backing = env._scores
+    view = env.scores
+
+    def assert_still_live(stage: str) -> None:
+        assert env._scores is backing, f"{stage}: backing ndarray was replaced"
+        assert np.shares_memory(view, env._scores), f"{stage}: view is detached"
+        assert np.array_equal(view, env.scores), f"{stage}: view is stale"
+        assert view.flags.writeable is False, f"{stage}: view became writeable"
+
+    env.step(np.array([int(Action.LEFT), int(Action.LEFT)], dtype=np.uint8))
+    assert_still_live("after step")
+    assert int(view[0]) > 0, "step did not score; the check would be vacuous"
+
+    env.reset_where(np.array([True, False]))
+    assert_still_live("after reset_where")
+    assert int(view[0]) == 0, "reset_where did not clear the score"
+    assert int(view[1]) > 0, "reset_where cleared an unselected game"
+
+    env.reset(seed=SEED)
+    assert_still_live("after reset")
+    assert np.array_equal(view, np.zeros(2, dtype=np.int64))

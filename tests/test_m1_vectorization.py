@@ -160,7 +160,8 @@ def test_python_line_count_is_constant_in_batch_size():
     traced = {
         fast_env_module._pack_left_rows,
         fast_env_module._merge_left_rows,
-        fast_env_module._audit_merge_overflow,
+        fast_env_module._audit_tile_merge_overflow,
+        fast_env_module._audit_merge_reward_overflow,
         fast_env_module._move_groups,
         fast_env_module._move_batch,
     }
