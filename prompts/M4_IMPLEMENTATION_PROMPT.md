@@ -361,7 +361,7 @@ strength 判定机械执行：
 
 性能 benchmark 每个架构固定使用 **training seed 20260919 的 epoch-30 final checkpoint**；权重数值不参与选择 checkpoint。执行路径固定 **PyTorch eager + §9 共同 primary precision**；M4 禁止 `torch.compile` benchmark，避免引入第二套执行路径。每次只把当前被测模型保留在 GPU，上一个模型删除后执行 `gc.collect(); torch.cuda.empty_cache()`。
 
-Model-only inference 固定 batch：`1, 256, 1024, 4096, 8192`。每个 batch size 的 5 个 repeat 测量顺序固定：repeat 0/2/4 为 Transformer→ResidualMLP，repeat 1/3 为 ResidualMLP→Transformer；模型加载/删除不计入 timed 区间。每个 architecture/batch size：
+Model-only inference 固定 batch：`1, 256, 1024, 2048, 4096, 8192`。每个 batch size 的 5 个 repeat 测量顺序固定：repeat 0/2/4 为 Transformer→ResidualMLP，repeat 1/3 为 ResidualMLP→Transformer；模型加载/删除不计入 timed 区间。每个 architecture/batch size：
 - 固定 synthetic input RNG = `numpy.random.Generator(numpy.random.PCG64(20261300 + batch_size))`；生成 shape `(batch_size,16)`、dtype `uint8`、每格均匀整数 `[0,21]`（即 `integers(0,22)`）并一次性传到 GPU；timed loop 复用同一 tensor，不包含 H2D；
 - 每个 architecture/batch size 恰好做 5 个 repeat；每个 repeat 开始前 `torch.cuda.reset_peak_memory_stats()`，50 iterations warmup，再 200 timed iterations；
 - timed 区间前后 `torch.cuda.synchronize()`；
