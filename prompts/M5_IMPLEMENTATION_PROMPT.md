@@ -1,10 +1,17 @@
 ﻿# M5 Teacher 预训练 — 严格施工提示词
 
+> **状态：HISTORICAL / FINAL AUDITED PASS / FROZEN。M5 已完成独立审计；本施工单仅用于复现与审计，不得作为当前阶段重新执行。当前阶段见 authoritative master plan（M6）。**
+>
+> authoritative tag：`m5-pretrain-audited-pass` -> `36fe93cb211b08916d40df3a7e80bdea0b04a658`
+> selected scale：`524k`
+> champion seed：`20262103`
+> champion checkpoint SHA-256：`4C1313E9085E3A0C1FEC4C6AAA1200A0A5A4377F3EAE0176659F80E9EEAE5784`
+>
 > 项目：Safolour/NN-2048-ai
 > 正式工作区：D:\CodexTasks\NN-2048-ai
-> 当前阶段：M5 Teacher Pretraining
+> 历史阶段：M5 Teacher Pretraining
 > Work-order version: `M5_WO_CLOSURE_V2`
-> 本文件是 M5 的唯一详细施工单；authoritative master plan 始终优先。
+> 本文件是 M5 的冻结施工单；authoritative master plan 始终优先。
 
 # 0. 权威输入
 
