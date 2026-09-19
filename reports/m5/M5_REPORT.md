@@ -100,10 +100,10 @@ This is candidate evidence, not M5 audited/frozen status.
 
 ## 15. GIT / CI
 
-- candidate_sha=PENDING_BY_DESIGN
-- candidate_ci=PENDING_BY_DESIGN
+- candidate_sha=36fe93cb211b08916d40df3a7e80bdea0b04a658
+- candidate_ci=run_id:35449808850 conclusion:success
 - closeout_commit_sha=SELF_NOT_EMBEDDABLE_BY_DESIGN
-- closeout_ci=PENDING_BY_DESIGN
+- closeout_ci=PENDING_BY_DESIGN_AT_REPORT_COMMIT
 
 ## 16. AUDIT STATUS
 
