@@ -4,6 +4,7 @@
 > 正式工作区：D:\CodexTasks\NN-2048-ai
 > 当前阶段：M4 Transformer vs MLP
 > 本文件是 M4 的唯一详细施工单；authoritative master plan 始终优先。
+> Work-order version: `M4_WO_CLOSURE_V2`。
 
 # 0. 权威输入
 
@@ -26,27 +27,61 @@
 M3 audit docs closeout parent：
 `2ed31b084d8e73f31ea12d69b6dc23e293c7e024`
 
-开工固定执行：
+每次进入 `run M4`，先固定执行：
 
 ```text
 git fetch origin
 git rev-parse HEAD
 git rev-parse origin/main
-git status --short
+git status --porcelain=v1 -uall
+git diff --cached --quiet
 ```
 
-硬门：
-- `HEAD == origin/main`；
-- `git status --short` 必须为空；
-- `git merge-base --is-ancestor "m3-teacher-audited-pass^{}" HEAD` 必须 exit 0；
-- 根目录不得存在任何 `M*_REPORT.md` 或 `m*_*.json` milestone 产物。
+并计算：
+- 当前 `prompts/M4_IMPLEMENTATION_PROMPT.md` 文件 SHA-256，记为 `prompt_sha256`；
+- `artifacts/m4/progress/session.json` 是否存在。
 
-任一不满足：STOP，输出 `M4_BLOCKED_START_STATE`，不得自行 pull/rebase/reset/restore/delete。
+启动模式只允许两种：
+
+### FRESH
+
+仅当 `session.json` 不存在时进入 FRESH。硬门：
+- `HEAD == origin/main`；
+- `git status --porcelain=v1 -uall` 为空；
+- staged diff 为空；
+- `git merge-base --is-ancestor "m3-teacher-audited-pass^{}" HEAD` exit 0；
+- 根目录不存在任何 `M*_REPORT.md` 或 `m*_*.json` milestone 产物；
+- `git diff --quiet "m2-network-audited-pass^{}" -- src/game2048/m2_models.py src/game2048/m2_symmetry.py src/game2048/m2_policy.py src/game2048/m2_rollout_env.py src/game2048/m2_fast_backend.py cpp/m2_fast_backend` exit 0。
+
+任一不满足：STOP，输出 `M4_BLOCKED_START_STATE`；不得自行 pull/rebase/reset/restore/delete。
+
+FRESH P0 全部通过后，原子创建 `artifacts/m4/progress/session.json`，固定至少包含：
+`schema_version=1, work_order_version="M4_WO_CLOSURE_V2", base_head, prompt_sha256, dataset_sha256, state="P0_PASSED", p0_pytest`。
+
+### RESUME
+
+`session.json` 存在时必须进入 RESUME，禁止按 FRESH 重新开始。先验证：
+- `schema_version == 1`；
+- `work_order_version == "M4_WO_CLOSURE_V2"`；
+- session 中 `prompt_sha256` 等于当前 prompt SHA；
+- session 中 `dataset_sha256` 等于 §5 固定 SHA；
+- four frozen tags 仍精确匹配；
+- frozen M2 source diff gate 仍 exit 0。
+
+任一不满足：STOP，输出 `M4_BLOCKED_RESUME_METADATA_MISMATCH`，不得删除 session 后假装 FRESH。
+
+RESUME 时**先执行 §22 的 Git/session 窄窗口恢复，再应用下列 Git 门**。session `state` 只允许：
+- pre-candidate set = `{P0_PASSED,P1_READY,PRIMARY_RUNNING,PRIMARY_DONE,PERFORMANCE_RUNNING,PERFORMANCE_DONE,FINALIZE_RUNNING,FINALIZED,P10_RUNNING,P10_DONE,REPORT_WRITTEN}`：必须 `HEAD == origin/main == base_head`；staged diff 必须为空；dirty/untracked 路径只能是 §19 六个 tracked 路径的子集，除此之外任一 dirty path → STOP `M4_BLOCKED_RESUME_DIRTY_SCOPE`；不重跑 P0 full pytest；
+- `CANDIDATE_PUSHED`：必须 `HEAD == origin/main == candidate_sha` 且 worktree clean；只恢复 candidate CI 阶段；
+- `CLOSEOUT_REPORT_READY`：必须 `HEAD == origin/main == candidate_sha`；staged diff 必须为空；dirty path 只能为空或精确等于 `reports/m4/M4_REPORT.md`；只恢复 mandatory closeout report/commit；
+- `CLOSEOUT_PUSHED`：必须 `HEAD == origin/main == closeout_sha` 且 worktree clean；只恢复 closeout CI 阶段；
+- `COMPLETE`：不得重跑任何实验，直接报告已有 complete evidence 并 STOP。
+
 不得修改 M0/M1/M2/M3 frozen implementation 或移动 frozen tags。
 
 # 2. 工作区边界
 
-当前 main 已完成 post-M3 cleanup；M4 从 clean working tree 开始。
+当前 main 已完成 post-M3 cleanup；FRESH 必须从 clean working tree 开始，RESUME 只能按 §1 的 session 状态机继续。
 
 允许本地存在被 `.gitignore` 忽略的 `artifacts/`、checkpoint、build/cache；它们不属于 dirty worktree。
 禁止 `git add -A` / `git add .`。
@@ -73,13 +108,13 @@ M4 不做：
 - self-play；
 - Replay / Double-Q / Target；
 - Search Correction；
-- 网络规模 2M/10M/15M sweep；
+- 网络规模 2M/10M/15M sweep；**这只是 M4 控制变量限制，不得解释为取消 master plan 后续约 2M/5M/10M/15M scale experiment 或其“有收益则继续扩大、无收益才停止”的强度上限机制**；
 - 修改 Transformer/MLP architecture；
 - 修改 M3 Teacher/Search。
 
 # 4. 固定模型
 
-必须直接复用 M2 frozen architecture：
+必须直接复用 M2 frozen architecture。M4 的 canonical `architecture_id` 只允许两个精确字符串：`Transformer2048` 与 `ResidualMLP2048`；本文所有 `<architecture>` 占位符、artifact 文件名与 summary JSON model key 都必须使用这两个字符串。
 - `Transformer2048()`
 - `ResidualMLP2048()`
 
@@ -114,7 +149,7 @@ M4 只使用 M3 audited canonical dataset：
 
 `F0E5D806A3E17A27284998AAD52A683245A3C74EBDD15B23EFC13448B9D96582`
 
-不一致：STOP，输出 `BLOCKED_M3_DATASET_SHA_MISMATCH`。
+不一致：STOP，输出 `M4_BLOCKED_M3_DATASET_SHA_MISMATCH`。
 
 然后验证：
 - states = 8192
@@ -128,8 +163,10 @@ M4 只使用 M3 audited canonical dataset：
 - value_semantics = `SEARCH_VALUE_RAW_LEAF`
 - canonical_unaugmented = true
 
+上述 metadata/schema 任一不满足：STOP，输出 `M4_BLOCKED_M3_DATASET_METADATA`。
+
 artifact 存在时禁止重新生成。
-如果缺失：STOP，报告 `BLOCKED_M3_DATASET_MISSING`；不得在 M4 偷跑 M3 数据生成。
+如果缺失：STOP，报告 `M4_BLOCKED_M3_DATASET_MISSING`；不得在 M4 偷跑 M3 数据生成。
 
 # 6. Supervision 锁死
 
@@ -198,22 +235,27 @@ M4 必须为每个 training seed 预生成同一套 deterministic training plan�
 - `torch.cuda.manual_seed_all(S)`
 - `torch.backends.cudnn.benchmark = False`
 - `torch.backends.cudnn.deterministic = True`
+- `torch.backends.cuda.matmul.allow_tf32 = False`
+- `torch.backends.cudnn.allow_tf32 = False`
+- `torch.set_float32_matmul_precision("highest")`
 - `torch.use_deterministic_algorithms(True, warn_only=True)`
 
 模型必须在设置这些 seed 后重新实例化；禁止从 M3 Student checkpoint warm-start。
 
-Precision 决策只有一次，算法固定：
-1. 使用 training seed `20260919`，两个架构分别从随机初始化做 **20 个 optimizer step** 的 BF16 smoke；data plan 使用该 seed 的前 20 个正式 step；smoke 结束后丢弃模型，不计入 primary；
-2. BF16 smoke 每一步必须同时满足：loss finite、所有存在的 gradient finite、optimizer step 后所有 trainable parameter finite、无 CUDA/PyTorch exception；
-3. 两个架构 20/20 steps 全满足 → M4 primary precision 固定为 `BF16 autocast`；
-4. 只要任一架构任一步不满足，或当前 CUDA/PyTorch 不支持 BF16 → 两个架构统一使用 FP32；随后两个架构各做 5-step FP32 finite smoke；
-5. 若 FP32 smoke 任一架构仍出现 non-finite/exception → STOP，输出 `M4_BLOCKED_NUMERIC_SMOKE`。
+Precision 决策只有一次，而且必须在 §7 三个正式 plan 已生成并校验 SHA 后执行。算法固定：
+1. 先调用 `torch.cuda.is_bf16_supported()`；返回 False 时两个架构的 BF16 smoke 状态都固定记 `NOT_SUPPORTED`，直接进入第 4 步；返回 True 时继续；
+2. BF16 smoke 架构顺序固定 `Transformer2048 → ResidualMLP2048`。每个架构开始 smoke 前都重新执行 §9 的 seed/determinism 设置，使用 `S=20260919`，然后全新实例化 model + AdamW；读取 `artifacts/m4/plans/plan_20260919.npz` 的前 20 个正式 optimizer step，做 **20 steps**，禁止临时另造数据顺序；对 BF16 smoke 内部捕获 CUDA/PyTorch exception并把该架构标记 `FAIL_EXCEPTION`，不得让它冒泡成 §17 runtime blocker；
+3. 每一步必须满足：loss finite、所有存在的 gradient finite、optimizer step 后所有 trainable parameter finite；任一不满足标记该架构 `FAIL_NONFINITE`。无论第一个架构成功/失败，都必须继续完成另一个架构的 BF16 smoke。两个架构均 20/20 PASS → primary precision 固定为 `BF16 autocast`，smoke 模型全部丢弃；
+4. BF16 不支持或任一架构 BF16 非 PASS → 两个架构统一使用 FP32，并固定按 `Transformer2048 → ResidualMLP2048` 做 FP32 smoke。每个架构前再次重置 §9 seed/determinism、全新 model+AdamW，使用同一 plan 的**前 5 个正式 optimizer step**，不得复用 BF16 smoke 的 model/optimizer state；
+5. FP32 smoke 每一步使用与第 3 步同样 finite 条件；任一架构 5-step FP32 非 PASS/exception → STOP，输出 `M4_BLOCKED_NUMERIC_SMOKE`；两者 PASS → primary precision 固定 FP32。
+
+`artifacts/m4/progress/precision.json` 必须原子写入：BF16 support bool、两个架构 BF16 状态/完成 steps、是否 fallback、两个架构 FP32 状态/完成 steps（未运行则 `NOT_RUN`）、最终 selected precision。只有该文件完整后才开始 primary run；中断在 precision smoke 内时丢弃 partial smoke 模型并从整个 precision decision 第 1 步重跑。
 
 禁止 FP16，禁止 GradScaler，禁止一个架构 BF16、另一个 FP32。最终 precision 决策写入 summary。
 
 # 10. 每个 primary run 必须记录
 
-训练前必须在 **canonical、无 D4 augmentation** 的完整 train/validation split 上 eval：
+§10 的所有 initial / per-epoch validation / final train / final validation eval 一律 `model.eval()` + `torch.inference_mode()` + FP32 inference（autocast disabled）。训练前必须在 **canonical、无 D4 augmentation** 的完整 train/validation split 上 eval：
 - initial train CE
 - initial validation CE
 - initial raw best-action accuracy
@@ -234,24 +276,24 @@ metric 公式固定复用 M3 定义：
 - validation legal pairwise ranking
 - training compute wall seconds：每个 epoch 只包围 7 个 training steps；epoch validation/checkpoint/日志不计入；epoch training 段前 `torch.cuda.synchronize()` + `time.perf_counter()`，7 steps 后再次 synchronize 并累加 elapsed
 - optimizer steps
-- samples/s
-- peak VRAM
-- GPU utilization diagnostic：P0 固定执行一次 `nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total --format=csv,noheader,nounits`；若 exit 0，则训练期间每 1 秒采样并报告 mean/p95 GPU utilization 与 peak memory.used；若 P0 命令非 0，则本轮所有 GPU-util 字段统一写 `N/A (nvidia-smi unavailable)`，不得换监控方案
+- samples/s = `6528 / 该 epoch training_compute_wall_seconds`
+- peak VRAM：每个 primary run 在 initial eval 完成、正式 epoch 1 开始前执行 `torch.cuda.reset_peak_memory_stats()`；run 结束取 `torch.cuda.max_memory_allocated()`，因此记录的是整个 30-epoch train/validation 期间峰值（模型本身已在 GPU）
+- GPU utilization diagnostic：P0 固定执行一次 `nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total --format=csv,noheader,nounits`；若 exit 0，则**仅在每个 epoch 的 7-step training segment**期间用 1 Hz sampler，所有 epoch 有效样本合并后报告 mean/p95 utilization 与 peak memory.used；若整个 run 有效样本数=0 写 `N/A_NO_SAMPLES`；若 P0 命令非 0 写 `N/A_NVIDIA_SMI_UNAVAILABLE`；该 diagnostic 不参与 PASS/selection
 
 训练结束固定使用 **epoch 30 最终模型**；禁止选择 validation 最好的历史 epoch。固定保存 `artifacts/m4/checkpoints/<architecture>_<seed>_final.pt`（model state + architecture + seed + precision + dataset SHA + plan SHA），计算整个 checkpoint 文件 SHA-256 并写入 summary。然后记录：
 - final canonical train metrics
 - final validation metrics
-- D4 consistency diagnostic
+- D4 consistency diagnostic **此处只登记为 DEFERRED_TO_§11；不得在单个 run 结束时消费/索引任何 test row**
 - total training compute wall = 30 个 epoch training-only elapsed 之和
 - 210 个 step 的 GPU step time：每 step 用一对 `torch.cuda.Event(enable_timing=True)` 包围 forward/backward/clip/optimizer，epoch 末 synchronize 后读取 milliseconds；报告 mean/median/p95
 - Q head/backbone parameter updates confirmed：训练前 clone 对应参数；epoch 30 后必须至少一个 backbone tensor 与至少一个 q_head tensor `torch.equal == False`，否则 STOP `M4_BLOCKED_NO_PARAMETER_UPDATE`
 - V head / Afterstate head 参数与训练前 clone 必须对每个 tensor `torch.equal == True`；任一变化 → STOP `M4_BLOCKED_VALUE_HEAD_UPDATED`
 
-test split 只有全部 6 个 primary run 完成、协议不得再修改后才读取。
+dataset 文件/数组可以在程序启动时整体加载，但在全部 6 个 primary run 完成前，**禁止用 `split==test` 选出 test rows、禁止把 test row 转成训练/eval tensor、禁止把 test row 输入模型或任何 metric**。只有全部 6 个 primary run 完成后才允许消费 test rows。
 
 # 11. Test Teacher metrics
 
-Teacher train/validation/test metrics 与 D4 diagnostic 一律 `model.eval()` + `torch.inference_mode()` + **FP32 inference（autocast disabled）**；对每个 final model 按 §10 完全相同 metric 公式、batch size=1024 记录：
+全部 6 个 primary run 完成后才允许进入本节并首次消费 `split==test` 的 896 rows。Teacher train/validation/test metrics 与 D4 diagnostic 一律 `model.eval()` + `torch.inference_mode()` + **FP32 inference（autocast disabled）**；对每个 final model 按 §10 完全相同 metric 公式、batch size=1024 记录：
 - test CE
 - legal best-action accuracy
 - legal pairwise ranking accuracy
@@ -259,7 +301,7 @@ Teacher train/validation/test metrics 与 D4 diagnostic 一律 `model.eval()` + 
 - D4 legal-argmax consistency
 - centered-logit D4 MAE
 
-D4 diagnostic 公式固定与 M3 一致：canonical logits 减去每行 4-action mean；对 transform id 1..7 做 board transform、NN forward、inverse-transform Q 回原方向，再减每行 mean；报告 7 个变换上的 legal argmax consistency，以及所有 restored-centered 与 canonical-centered 元素绝对误差的全局 mean。
+D4 diagnostic **固定只在完整 canonical test split 896 states 上计算**。公式固定与 M3 一致：canonical logits 减去每行 4-action mean；对 transform id 1..7 使用 `transform_board_batch`、NN forward、`inverse_transform_q_values` 回原方向，再减每行 mean；报告每个 transform id 的 legal argmax consistency、7 个 id 合并后的 overall consistency，以及所有 restored-centered 与 canonical-centered 元素绝对误差的全局 mean。
 
 test 不得用于改 LR/epoch/batch/architecture。
 
@@ -285,14 +327,16 @@ test 不得用于改 LR/epoch/batch/architecture。
 game evaluator 实现固定，不得自行选择：
 
 - movement/legal：使用 frozen `src/game2048/m2_fast_backend.py::move_selected_batch` / `legal_mask_batch`；
-- 每个 game seed `G` 单独创建 `spawn_rng = numpy.random.Generator(numpy.random.PCG64(G))`；初始两个 tile 与以后所有 spawn 都只消费该局自己的 `spawn_rng`；
+- 每个 game seed `G` 单独创建 `spawn_rng = numpy.random.Generator(numpy.random.PCG64(G))`；初始 board 固定为 `np.zeros(16, dtype=np.uint8)`，然后严格调用两次 `reference_env.spawn_random(board, spawn_rng).state` 生成起始两 tile；以后所有 spawn 继续只消费该局自己的 `spawn_rng`；初始 score=0；
 - 每个 game seed `G` 单独创建 `tie_rng = numpy.random.Generator(numpy.random.PCG64(G ^ 0x9E3779B9))`；它只用于 Q tie-break，不得用于 spawn；
-- evaluator **必须**把当前所有 active boards 合并成一个 batch 做 NN forward，并用 `move_selected_batch` 批量 movement；随后仅 spawn 阶段按 game id 逐局消费对应独立 RNG；某局提前 terminal 不得影响其他局 RNG；
-- score 只累加 merge reward；terminal 后停止该局。
+- evaluator **必须**把当前 evaluation shard 内所有 active boards 按 game_seed 升序合并成一个 batch 做 NN forward，并用 `move_selected_batch` 批量 movement；formal 2000-game evaluation 的 shard size 固定为 100，§12 correctness gate 的 gate batch 固定为 32；随后仅 spawn 阶段按 game_seed 升序逐局消费对应独立 RNG；某局提前 terminal 不得影响其他局 RNG；
+- 每个 loop 先对 current boards 计算 legal mask；`legal.any(axis=1)==False` 的 row 立即 finalize 并从 active set 删除，禁止送入 NN；只对剩余 nonterminal rows forward；其所有 legal logits 必须 finite，任一 legal logit 非 finite → STOP `M4_BLOCKED_EVAL_NONFINITE`；
+- tie candidate 固定为按 action id 升序的 `np.flatnonzero(legal & (qmax - q <= 1e-7))`；多个候选时使用 `candidate_index = tie_rng.integers(0, len(candidates))`，再取 `candidates[candidate_index]`；
+- selected action 必须 legal，且对应 `move_selected_batch.moved` 必须 True，否则 STOP `M4_BLOCKED_GAME_EVALUATOR_CORRECTNESS`；每次成功 action 后 `moves += 1`；score 只累加 merge reward；terminal 后停止该局。
 
-正式 2000-game 前固定用 evaluation seeds `20261001..20261032` 做 correctness gate：
-1. 同一个 model + 同一个 seed 连续运行两次，final score / moves / max_tile_exp 必须完全一致；
-2. 对同一动作序列逐步将 `move_selected_batch` 与 M0 `move_without_spawn` 比较，afterstate/reward/moved 必须逐步完全一致；
+正式 2000-game 前固定用 **Transformer2048/20260919 final checkpoint 与 ResidualMLP2048/20260919 final checkpoint** 两个模型，各自对 evaluation seeds `20261001..20261032` 做 correctness gate：
+1. 每个 model + 每个 seed 连续运行两次，final score / moves / max_tile_exp 必须完全一致；
+2. 在第一次运行中，对每一步模型实际选择的 action，在 spawn 前同时计算 fast/reference：设该 row 为 `k`，必须 `np.array_equal(fast.afterstates[k], ref.afterstate)`、`int(fast.rewards[k]) == int(ref.reward)`、`bool(fast.moved[k]) == bool(ref.moved)`；三项逐步完全一致；
 3. 任一失败 → STOP，输出 `M4_BLOCKED_GAME_EVALUATOR_CORRECTNESS`。
 
 固定 paired game seeds：
@@ -300,7 +344,7 @@ game evaluator 实现固定，不得自行选择：
 `20261001 + i, i = 0..1999`
 
 即每个 trained model **2000 games**。
-两个架构、三个 training seeds 都使用完全相同 2000 game seeds。game evaluation 的 6-model 执行顺序固定复用 §23 的 primary run 顺序，不得重排。
+两个架构、三个 training seeds 都使用完全相同 2000 game seeds。为保证断线恢复不改变 batch composition，2000 seeds 固定切成 **20 个连续 shard，每 shard 恰好 100 seeds**：shard `j=0..19` 包含 `20261001 + 100*j .. 20261001 + 100*j + 99`。每个 shard 从空盘独立开始并在该 shard 内动态 batch active games；禁止跨 shard 合批。game evaluation 的 6-model 执行顺序固定复用 §23 的 primary run 顺序，不得重排；每个 model 内 shard 必须按 j=0..19 顺序。
 
 每局记录：
 - final score
@@ -312,8 +356,9 @@ game evaluator 实现固定，不得自行选择：
 - median
 - p10 / p90
 - mean moves
-- reach 2048/4096/8192/16384/32768/65536
-- max-tile distribution
+- reach 2048/4096/8192/16384/32768/65536：分别定义为 `max_tile_exp >= 11/12/13/14/15/16` 的 game 比例；
+- max-tile distribution：按 terminal `max_tile_exp` 的整数值做 `{exp: count}` 频数表；
+- p10 / p90 均使用 `np.quantile(scores, [0.1, 0.9])` 默认 linear method。
 
 # 13. 棋力统计规则
 
@@ -322,12 +367,12 @@ game evaluator 实现固定，不得自行选择：
 
 paired bootstrap 算法固定：
 - delta vector = 同一 evaluation seed 的 `Transformer score - MLP score`；
-- RNG = `numpy.random.Generator(numpy.random.PCG64(20261001))`；
+- training seeds 按 `20260919, 20260920, 20260921` 顺序，三个 per-seed bootstrap RNG 分别固定为 `PCG64(20261101) / PCG64(20261102) / PCG64(20261103)`；每个 CI 都新建自己的 Generator；
 - 恰好 10,000 次 resample；每次从 2000 个 paired index 中有放回抽取 2000 个 index并计算 mean delta；
 - 95% CI = bootstrap mean delta 的 `np.quantile([0.025, 0.975])`（NumPy 默认 linear method）；
-- 每个 training seed 分别执行一次并报告 paired mean delta / CI。
+- 每个 training seed 分别报告 paired mean delta / CI。
 
-aggregate 固定：对每个 evaluation seed，先分别对三个 Transformer training-seed score 求算术平均、三个 MLP training-seed score 求算术平均，再形成 2000 个 aggregate paired delta；用同一算法但 RNG seed `20261002` 做 10,000 bootstrap。
+aggregate 固定：对每个 evaluation seed，先分别对三个 Transformer training-seed score 求算术平均、三个 MLP training-seed score 求算术平均，再形成 2000 个 aggregate paired delta；使用全新 `numpy.random.Generator(numpy.random.PCG64(20261104))` 按同一算法做 10,000 bootstrap。
 
 strength 判定机械执行：
 1. aggregate CI lower > 0 且 3 个 per-training-seed **mean delta** 至少 2 个 > 0 → `TRANSFORMER_STRENGTH_SIGNIFICANT`；
@@ -338,15 +383,9 @@ strength 判定机械执行：
 
 严格按总计划“更简单、更快”处理。
 
-先比较 **8192-env closed-loop decisions/s**，协议固定：
-- 使用 frozen M2 `scalar+row-lut` rollout backend / `M2RolloutBatchEnv`；
-- PyTorch eager；precision 使用 §9 的共同 primary precision；
-- env_count = 8192；
-- 每个架构先做 100 个 closed-loop batch steps warmup，不计时；
-- 然后恰好做 5 个正式重复；每个重复重新构造 env，seed 固定为 `20261200 + repeat_index`，warmup 20 steps，然后计时 500 个 closed-loop batch steps；
-- 每个 timed repeat 前后执行 `torch.cuda.synchronize()`；
-- decisions/s = `8192 * 500 / elapsed_seconds`；
-- §14 使用 5 个 decisions/s 的 median。
+§14 **不得另跑性能 benchmark**。唯一性能真源是 §15；直接读取 §15 产出的 8192-env closed-loop median：
+- `T_median = performance.closed_loop["8192"]["Transformer2048"]["median_decisions_per_s"]`
+- `M_median = performance.closed_loop["8192"]["ResidualMLP2048"]["median_decisions_per_s"]`
 
 令 `fast = max(T_median, M_median)`，`slow = min(T_median, M_median)`，`speed_ratio = fast / slow`。
 
@@ -361,25 +400,36 @@ strength 判定机械执行：
 
 性能 benchmark 每个架构固定使用 **training seed 20260919 的 epoch-30 final checkpoint**；权重数值不参与选择 checkpoint。执行路径固定 **PyTorch eager + §9 共同 primary precision**；M4 禁止 `torch.compile` benchmark，避免引入第二套执行路径。每次只把当前被测模型保留在 GPU，上一个模型删除后执行 `gc.collect(); torch.cuda.empty_cache()`。
 
-Model-only inference 固定 batch：`1, 256, 1024, 2048, 4096, 8192`。每个 batch size 的 5 个 repeat 测量顺序固定：repeat 0/2/4 为 Transformer→ResidualMLP，repeat 1/3 为 ResidualMLP→Transformer；模型加载/删除不计入 timed 区间。每个 architecture/batch size：
+Model-only inference 固定 batch：`1, 256, 1024, 2048, 4096, 8192`。每个 batch size 的 5 个 repeat 测量顺序固定：repeat 0/2/4 为 Transformer2048→ResidualMLP2048，repeat 1/3 为 ResidualMLP2048→Transformer2048；模型加载/删除不计入 timed 区间。每个 architecture/batch size：
+- 必须加载该 architecture 的 training seed 20260919 final checkpoint，并验证 checkpoint metadata 的 architecture/seed/precision/dataset SHA 与当前 M4 evidence 一致；SHA 必须等于 primary_training 中记录的 final checkpoint SHA，否则 STOP `M4_BLOCKED_PERFORMANCE_CHECKPOINT_MISMATCH`；
 - 固定 synthetic input RNG = `numpy.random.Generator(numpy.random.PCG64(20261300 + batch_size))`；生成 shape `(batch_size,16)`、dtype `uint8`、每格均匀整数 `[0,21]`（即 `integers(0,22)`）并一次性传到 GPU；timed loop 复用同一 tensor，不包含 H2D；
-- 每个 architecture/batch size 恰好做 5 个 repeat；每个 repeat 开始前 `torch.cuda.reset_peak_memory_stats()`，50 iterations warmup，再 200 timed iterations；
-- timed 区间前后 `torch.cuda.synchronize()`；
-- 每 repeat 报告 states/s、mean latency、peak VRAM；最终报告 5 个 states/s 的 median 与 5 个 latency 的 median。
+- inference context 固定为 `model.eval()` + `torch.inference_mode()`；若 §9 primary precision=`BF16 autocast`，则用 `torch.autocast(device_type="cuda", dtype=torch.bfloat16)`；若为 FP32，则 autocast disabled；
+- 每个 architecture/batch size 恰好做 5 个 repeat；每个 repeat 开始前 `torch.cuda.reset_peak_memory_stats()`，50 iterations warmup，再 `torch.cuda.synchronize(); t0=time.perf_counter()`，连续 200 forward，随后 synchronize并取 elapsed；
+- 每 repeat 固定 `states_per_s = batch_size * 200 / elapsed`，`mean_latency_s = elapsed / 200`，`peak_vram_bytes = torch.cuda.max_memory_allocated()`；
+- 最终 `median_states_per_s=np.median(repeat_states_per_s)`、`median_latency_s=np.median(repeat_latency_s)`、`peak_vram_bytes=max(repeat_peak_vram_bytes)`。
 
-Closed-loop 只测固定两个规模：
-- 2048 envs
-- 8192 envs
+Closed-loop 只测固定两个规模：`2048` 与 `8192` envs。§15 是该 benchmark 的唯一协议真源。
 
-每个 env size 的 5 个 repeat 同样固定交替架构顺序：repeat 0/2/4 Transformer→ResidualMLP，repeat 1/3 ResidualMLP→Transformer。每个规模均按 §14 的 `100-step global warmup + 5 repeats × (20 warmup + 500 timed steps)` 协议执行。**M4 不测 16384/32768**，不得自行扩展 benchmark 矩阵。
+对每个 `env_count E in [2048, 8192]`、每个 `repeat_index r in [0,1,2,3,4]`、每个架构：
+- 架构执行顺序固定：r=0/2/4 为 Transformer2048→ResidualMLP2048，r=1/3 为 ResidualMLP2048→Transformer2048；
+- 加载/验证 checkpoint 规则与本节 model-only 完全相同；inference context 同样使用 §9 primary precision；
+- 构造 `M2RolloutBatchEnv(E, seed=20261200+r)`，随后显式 `reset(seed=20261200+r)`；
+- 每个 closed-loop step 的数据路径固定：`boards_np = prepare_board_batch_for_transfer(env.boards)`；`legal_np = np.ascontiguousarray(env.current_legal)`；同步 `torch.from_numpy(...).to("cuda", non_blocking=False)` 得到 boards/legal；在固定 precision inference context 下 `q=model(boards)`；然后 `select_greedy_actions(q.float(), legal, generator=generator, tie_atol=1e-6)`；actions 同步 `.to("cpu").numpy().astype(np.uint8, copy=False)`；调用 `env.step(actions_np)`；若 `step.terminated.any()` 则 `env.reset_where(step.terminated)`；
+- `generator = torch.Generator(device="cuda").manual_seed(20261400 + E*10 + r)`，从该 repeat 第一个 warmup step 一直连续使用到 500 个 timed step结束，不重置；
+- 当前架构 checkpoint 加载完成后先做 20 个上述 closed-loop warmup steps，不计时；
+- 每个 repeat timed 区间开始前记录 `cpu0=time.process_time()`，`torch.cuda.synchronize()` 后 `t0=time.perf_counter()`；计时恰好 500 个完整 closed-loop steps（**包括 CPU board/legal 准备、H2D、NN、action selection、D2H、env.step、terminal reset**），随后 synchronize；
+- `elapsed_seconds = perf_counter()-t0`，`cpu_seconds=time.process_time()-cpu0`，`decisions_per_s = E * 500 / elapsed_seconds`，`normalized_cpu_percent = 100 * cpu_seconds / elapsed_seconds / os.cpu_count()`；
+- 每个 repeat 开始前 `torch.cuda.reset_peak_memory_stats()`；模型加载/删除与 warmup 不计入 timed wall；`peak_vram_bytes=torch.cuda.max_memory_allocated()`。
+
+每个 E / architecture 恰好得到 5 个 decisions/s，并报告 median。**M4 不测 16384/32768**，不得自行扩展 benchmark 矩阵。
 
 每个 closed-loop point 固定记录：
 - 5 个 repeat decisions/s + median；
 - wall seconds；
 - peak VRAM = `torch.cuda.max_memory_allocated()`；
-- GPU utilization = §10 固定 `nvidia-smi` 采样规则；
-- normalized CPU process utilization = `100 * (process_time_delta / wall_delta) / os.cpu_count()`；
-- pipeline ratio = 对应 batch/env size 的 model-only states/s median ÷ closed-loop decisions/s median。
+- GPU utilization：若 P0 `nvidia-smi` 可用，则每个 timed repeat 开始时启动 1 Hz sampler、timed repeat 结束立即停止；有 >=1 样本则该 repeat 记录 mean utilization，5 repeats 的 point 值取所有有效样本合并后的 mean/p95；若某 point 总有效样本数为 0，则写 `N/A_NO_SAMPLES`；若 P0 不可用则写 `N/A_NVIDIA_SMI_UNAVAILABLE`；该字段纯 diagnostic，不参与 PASS/selection；
+- normalized CPU process utilization：记录每个 repeat 的 `normalized_cpu_percent`，point 值取 5 个 repeat 的 median；
+- pipeline ratio = 同一 `E` 的 model-only batch=`E` states/s median ÷ closed-loop decisions/s median；因此只对 E=2048 与 E=8192 计算。
 
 任一 required model-only 或 closed-loop point OOM → STOP，`M4_BLOCKED_PERFORMANCE_OOM`；任一 throughput/latency 非 finite 或 <=0 → STOP，`M4_BLOCKED_PERFORMANCE_INVALID`。禁止缩小 required batch/env 或删除 point。
 
@@ -402,13 +452,17 @@ Primary 6 runs 完成后，使用 §10 定义的 `total_training_compute_wall`�
 
 secondary 固定协议：
 - common budget seconds = `max(T_primary_wall_median, M_primary_wall_median)`；
-- 两架构均重新 random init，training seed 固定 `20260919`；
-- optimizer/lr/batch/precision 与 primary 完全相同；
-- data-plan RNG 重新用 `PCG64(20260919)`，按 §7 算法连续生成 epoch，不限制 30 epochs；
-- secondary budget 也只计算 training steps：每个 step 前 synchronize 并读取累计 training-only wall；若累计 `>= common_budget` 则停止，否则执行一个完整 step并把该 step 的 synchronized wall 加入累计；允许最终累计超预算最多一个完整 step；validation/checkpoint/logging 不计入 budget；
+- 两架构执行顺序固定 `Transformer2048 → ResidualMLP2048`；二者均重新 random init，training seed 固定 `20260919`；每个架构开始前都重新执行 §9 的全部 seed/determinism 设置；模型初始化/optimizer/precision 与 primary 完全相同；
+- secondary 数据流与 primary plan 分离，使用**无上限、可恢复的 stateless per-epoch plan**：secondary epoch `e=0,1,2,...` 时创建 `rng = numpy.random.Generator(numpy.random.PCG64(20262000 + e))`，先 `rng.permutation(train_indices)`，再 `rng.integers(0,8,size=6528,dtype=np.uint8)`；batch 切分仍为 1024×6 + 384×1；两架构对同一 e 必须得到完全相同 plan；
+- `secondary_plan_id` 固定为 `FBDCB22E4A9A16359073740890F3FBC1F5C91031656F385487AEB3F507B48642`，即 ASCII 字符串 `M4_SECONDARY_STATELESS_PCG64_20262000_V1` 的 SHA-256；不使用 primary `plan_sha256` 代替；
+- secondary 的 `training_only_wall` 计时口径必须与 primary §10 完全一致：每个完整 epoch 的 7 个 training steps 作为一个连续 training segment，segment 前 synchronize + perf_counter，7 steps 完成后 synchronize 并累加 wall；validation/checkpoint/logging 不计入；
+- 每个 secondary epoch 开始前检查累计 `training_only_wall`；若已 `>= common_budget` 则停止，否则执行完整 7-step epoch；因此最终累计最多超预算一个完整 epoch；
+- secondary 必须每完成一个完整 epoch就原子保存 `artifacts/m4/secondary/<architecture>_latest.pt` 与 `artifacts/m4/secondary/<architecture>_progress.json`，至少含 model/optimizer state、next_epoch、completed_steps、training_only_wall、secondary_plan_id、precision、dataset SHA；中断在 epoch 内时从最近完整 epoch checkpoint 重做该未完成 epoch，禁止重放已标记完成 epoch；
+- 停止后保存 `artifacts/m4/secondary/<architecture>_final.pt`，记录 final checkpoint SHA；
 - 不做 early stopping；
-- 记录完整 steps、samples、实际 wall、最终 validation Teacher metrics；
-- 使用固定 2000 game seeds 再评测一次实际分数。
+- 最终 validation Teacher metrics 按 §10 FP32 canonical validation 公式计算；
+- 两个 secondary final model 都使用 §12 完全相同的 2000 game seeds 与 FP32 game evaluator，raw 结果分别保存 `artifacts/m4/secondary/games/<architecture>.npz`；
+- secondary 只报告两架构 mean score、median、reach rates 与 paired mean delta；paired bootstrap 95% CI 固定使用全新 `PCG64(20261105)`、10,000 resamples、与 §13 相同算法。
 
 secondary **永远不改变 §13 strength conclusion，也不改变 §14 selection algorithm**；它只写入报告作为 compute-normalized diagnostic，不得作为额外主观 tie-break。
 
@@ -433,10 +487,10 @@ M4 禁止 architecture-specific：
 
 - 任一 required primary run 出现 CUDA OOM → STOP，`M4_BLOCKED_PRIMARY_OOM`；禁止减 batch；
 - 任一 required primary run 出现 non-finite loss/gradient/parameter → STOP，`M4_BLOCKED_PRIMARY_NUMERIC`；
-- 任一 required script exception/进程非 0 且一次原样重跑仍复现 → STOP，`M4_BLOCKED_RUNTIME_ERROR`；
+- 任一 required script 自身 exit code 非 0 / uncaught exception → 立即 STOP，`M4_BLOCKED_RUNTIME_ERROR`；不得自动改代码、改配置或重跑掩盖错误；
 - 指标有限但很差 → 仍必须完成全部 6 runs、2000-game eval、统计与 selection；不得救场调参。
 
-“原样重跑”只允许相同代码、相同配置、相同 seed 重跑一次用于排除偶发进程/driver 中断，不得修改任何超参。
+工具连接/会话中断但本地脚本仍正常运行，不属于 runtime error；重新连接后按 §1/§22 session 状态机继续读取/恢复，不得启动第二个重复任务。
 
 # 18. Checkpoint / artifact 边界
 
@@ -476,12 +530,12 @@ Git 中 M4 **必须且只允许**新增/修改以下 tracked files：
 
 机器可读 summary 顶层 key 固定为：
 `schema_version, result, dataset, models, fairness, precision, plans, primary_training, teacher_metrics, game_evaluation, paired_statistics, d4, performance, equal_wall_clock_secondary, selection, regression`。
-`schema_version` 固定为 `1`；禁止自行改顶层 key 名。
+`schema_version` 固定为 `1`；`result` 在 candidate report 写入时固定为 `M4_CANDIDATE_EVIDENCE_COMPLETE`（它不表示 CI 已完成）；禁止自行改顶层 key 名。
 
 最低子字段固定：
 - `dataset`: `path, sha256, checkpoint_sha256, states, games, split_counts`；
 - `models`: 两架构的 `parameter_count`；
-- `fairness`: `epochs, batch_size, optimizer, lr, weight_decay, grad_clip, training_seeds, evaluation_seed_start, evaluation_games, tie_tolerance`；
+- `fairness`: `work_order_version, prompt_sha256, base_head, epochs, batch_size, optimizer, lr, weight_decay, grad_clip, training_seeds, evaluation_seed_start, evaluation_games, game_shard_size, tie_tolerance`；
 - `precision`: selected precision + 两架构 smoke pass/fail 细节；
 - `plans`: 3 个 seed 的 `plan_sha256`；
 - `primary_training`: 6 个 run 的 final checkpoint path/SHA、wall、step-time、samples/s；
@@ -489,9 +543,11 @@ Git 中 M4 **必须且只允许**新增/修改以下 tracked files：
 - `game_evaluation`: 6 个 run 的 2000-game summary + raw NPZ path；
 - `paired_statistics`: 3 个 per-seed delta/CI + aggregate delta/CI；
 - `d4`: 6 个 final model 的 consistency/MAE；
-- `performance`: model-only、closed-loop、training；
-- `equal_wall_clock_secondary`: `status` + 若触发则两架构结果；
-- `selection`: `strength_conclusion, selected_architecture, selection_rule`；
+- `performance.model_only`: batch key 固定为字符串 `"1","256","1024","2048","4096","8192"`；每个 batch 下固定 `Transformer2048/ResidualMLP2048`，各含 `repeat_states_per_s[5], repeat_latency_s[5], median_states_per_s, median_latency_s, peak_vram_bytes`；
+- `performance.closed_loop`: env key 固定为字符串 `"2048","8192"`；每个 env 下固定 `Transformer2048/ResidualMLP2048`，各含 `repeat_decisions_per_s[5], median_decisions_per_s, repeat_wall_s[5], peak_vram_bytes, gpu_utilization, cpu_utilization, pipeline_ratio`；
+- `performance.training`: 两架构各自 3-run training-only samples/s 与 median、step-time median/p95、peak VRAM；
+- `equal_wall_clock_secondary`: `status` 只允许 `NOT_TRIGGERED` 或 `TRIGGERED_COMPLETE`；触发时必须含 `secondary_plan_id, common_budget_seconds, Transformer2048, ResidualMLP2048, paired_delta`；
+- `selection`: `strength_conclusion, selected_architecture, selection_rule`；其中 `selection_rule` 只允许 `SCORE_SIGNIFICANCE / 8192_SPEED / PARAMETER_COUNT` 三个字符串；
 - `regression`: local pytest counts。
 
 # 20. Tests / correctness
@@ -510,68 +566,131 @@ existing M0-M3 tests不得删除/skip/xfail。
 
 # 21. 开工 P0
 
-第一动作必须按顺序报告：
+FRESH P0 第一动作必须按顺序报告：
 - HEAD / origin/main（必须相等）
 - working tree（必须 clean）
 - root layout check（不得有 milestone report/result JSON）
 - four frozen tag resolutions
+- frozen M2 source diff gate = 0
 - M3 dataset file SHA-256 + shape/splits/checkpoint-SHA metadata
 - official Python version
 - torch / CUDA / GPU name
 - `nvidia-smi` availability status
-- exact model parameter counts
+- exact model parameter counts：Transformer 必须 `4,750,342`、ResidualMLP 必须 `5,264,710`；任一不符 → STOP `M4_BLOCKED_MODEL_DRIFT`
 
-然后用官方 Python：
+仅 FRESH P0 使用官方 Python运行 baseline：
 `D:\sd-webui-forge-aki-v1.0\python\python.exe -m pytest -q`
 
-P0 baseline 必须精确为：
+结果必须精确为：
 - 525 passed
 - 0 failed
 - 0 skipped
 - 0 xfailed
 
-失败则 STOP，不得用 M4 修改 frozen source 来救。
+失败则 STOP，不得用 M4 修改 frozen source 来救。RESUME 不重跑这条 baseline，而是读取 session 中已冻结的 `p0_pytest`。
 
 # 22. 长任务可观测性与断线恢复
 
+固定 session state 枚举：
+`P0_PASSED, P1_READY, PRIMARY_RUNNING, PRIMARY_DONE, PERFORMANCE_RUNNING, PERFORMANCE_DONE, FINALIZE_RUNNING, FINALIZED, P10_RUNNING, P10_DONE, REPORT_WRITTEN, CANDIDATE_PUSHED, CLOSEOUT_REPORT_READY, CLOSEOUT_PUSHED, COMPLETE`。
+
 固定 artifact：
+- `artifacts/m4/progress/session.json`
 - `artifacts/m4/progress/precision.json`
+- `artifacts/m4/progress/primary.json`
 - `artifacts/m4/progress/train_<architecture>_<seed>.json`
 - `artifacts/m4/checkpoints/<architecture>_<seed>_latest.pt`
+- `artifacts/m4/checkpoints/<architecture>_<seed>_final.pt`
 - `artifacts/m4/games/<architecture>_<seed>.npz`
 - `artifacts/m4/progress/performance.json`
+- `artifacts/m4/progress/finalize.json`
+- `artifacts/m4/pytest.xml`
+- §16 触发时的 `artifacts/m4/secondary/...`。
 
-训练：每个 epoch 结束必须原子更新 progress JSON，并覆盖 `latest.pt`（包含 model state、optimizer state、next_epoch、seed、precision、data-plan SHA）；同时输出 architecture / seed / epoch / train CE / validation CE / val accuracy / elapsed / samples/s。
+session 更新必须原子写临时文件再 rename；每个 phase 启动前先写 `*_RUNNING`，成功结束后写对应 `*_DONE/FINALIZED`。
 
-2000-game evaluation：每完成恰好 100 个 game seeds 就更新一次 NPZ；NPZ key 固定为 `game_seed, final_score, max_tile_exp, moves`，数组长度等于当前已完成 games 且按 game_seed 升序；因为每局 RNG 独立，恢复时只运行尚未存在结果的 seed。每 100 games 输出 architecture / training seed / completed / elapsed / games/s / running mean score。
+Primary 训练：每个 epoch 结束必须原子更新 `train_<architecture>_<seed>.json`，并覆盖 `latest.pt`（包含 model state、optimizer state、next_epoch、seed、precision、dataset SHA、plan SHA）；同时输出 architecture / seed / epoch / train CE / validation CE / val accuracy / elapsed / samples/s。中断在 epoch 内时，恢复从最近一个已完整保存 epoch 的 checkpoint 开始，重新执行该未完成 epoch；不得重放已标记完成的 epoch。
 
-性能 benchmark：每完成一个 model-only batch size 或一个 closed-loop env size 的一个 repeat，立即更新 `performance.json`。
+每个 primary run 完成后，其 `train_<architecture>_<seed>.json` 必须追加并冻结：`completed=true, final_checkpoint_path, final_checkpoint_sha256, total_training_compute_wall, step_time_mean_ms, step_time_median_ms, step_time_p95_ms, peak_vram_bytes, final_train_metrics, final_validation_metrics`。
 
-恢复规则机械执行：
-1. 若 progress/checkpoint 的 architecture、seed、precision、dataset SHA、plan SHA 与当前施工单不完全一致 → STOP，`M4_BLOCKED_RESUME_METADATA_MISMATCH`；
-2. 一致 → 从 `next_epoch` / 缺失 game seed / 缺失 performance repeat 继续；
-3. 已完成 evidence 禁止重跑，除非对应 artifact 读取失败；
-4. 不得因工具断线从 P0 无条件重跑。
+2000-game evaluation：严格以 §12 的 20 个固定 100-game shard 为恢复单位。只有一个 shard 100 局全部 terminal 后才允许把该 shard 结果并入 NPZ；中断在 shard 内时丢弃该 shard 的内存中部分结果并从该 shard 第一个 seed 重新跑，禁止把 partial shard 与新 batch composition 拼接。NPZ key 固定为 `game_seed, final_score, max_tile_exp, moves`，数组只包含完整 shard、按 game_seed 升序。每完成一个 shard 原子更新 NPZ，并输出 architecture / training seed / completed_shards / completed_games / elapsed / games/s / running mean score。
+
+P2～P6 全部完成后，`--phase primary` 必须最后原子生成 `artifacts/m4/progress/primary.json`，它是 P7/P8/P9 的唯一 primary evidence manifest。固定顶层 key：`schema_version, work_order_version, dataset, precision, plans, primary_training, teacher_metrics, d4, game_evaluation, paired_statistics`；`schema_version=1`。它必须引用 6 个 final checkpoint 路径/SHA、6 个 raw game NPZ 路径及其 2000-game 完整性、3 个 plan SHA、§13 全部统计。只有 primary.json 完整写入后才允许 session=`PRIMARY_DONE`。
+
+性能 benchmark：P7 必须只从 `primary.json` 读取 selected precision 与 seed=20260919 两个 final checkpoint path/SHA。执行顺序固定：先 model-only batch 按 `1→256→1024→2048→4096→8192`，每个 batch 内 r=0..4；再 closed-loop env 按 `2048→8192`，每个 env 内 r=0..4。
+
+**performance resume 的原子单位是 architecture pair**：同一个 `(kind, size, repeat_index)` 的两个架构必须按 §15 固定顺序全部成功后，才允许把这一 pair 的两份结果一起原子写入 `artifacts/m4/progress/performance.json`。中断/异常发生在 pair 中间时，丢弃该 pair 已测但尚未 commit 的内存/temp 结果，恢复时按原固定架构顺序重跑整个 pair；已完整 commit 的 pair 禁止重跑。P7 完成时 performance.json 必须满足 §19 performance schema 后才允许 session=`PERFORMANCE_DONE`。
+
+Primary resume metadata 固定检查：
+- architecture
+- training seed
+- precision
+- dataset SHA
+- 对应 primary `plan_sha256`
+- final checkpoint 预期 architecture/seed。
+任一不一致 → STOP `M4_BLOCKED_RESUME_METADATA_MISMATCH`。
+
+若 session/progress 宣称某 plan/checkpoint/game NPZ/manifest/repeat 已完成，但对应文件缺失、无法解析、数组 shape/key 不符、或已有记录 SHA 与实际文件不符 → STOP `M4_BLOCKED_RESUME_ARTIFACT_CORRUPT`；不得自行删除该 evidence 后重算。
+
+Secondary resume 只按 §16 的 `secondary_plan_id + dataset SHA + precision + architecture + training seed` 检查，不得拿 primary `plan_sha256` 代替。
+
+Git/session 窄窗口恢复也固定，且**先于 §1 的 state Git gate 执行**：
+
+1. candidate commit 窗口（session.state=`REPORT_WRITTEN`）：
+   - `HEAD==origin/main==base_head`：说明尚未 commit，保持 REPORT_WRITTEN；
+   - 若 worktree clean、`HEAD^==base_head`、commit message 精确为 `m4: compare Transformer and ResidualMLP`、changed-path set 精确等于 §19 六个路径：
+     - 若 `origin/main==base_head`：说明 commit 已完成但 push 未完成；固定执行一次普通 `git push origin main`；push 非 0 → STOP `M4_BLOCKED_RESUME_GIT_STATE`；
+     - push 后或原本就满足 `origin/main==HEAD`：写 `candidate_sha=HEAD, state=CANDIDATE_PUSHED`；
+   - 其他情况 → STOP `M4_BLOCKED_RESUME_GIT_STATE`。
+
+2. closeout report 编辑窗口（session.state=`CLOSEOUT_REPORT_READY`）：
+   - `HEAD==origin/main==candidate_sha` 且 dirty path 为空或仅 `reports/m4/M4_REPORT.md`：继续 closeout edit/commit；
+   - 若 worktree clean、`HEAD^==candidate_sha`、commit message 精确为 `docs: close M4 candidate report`、changed-path set 精确等于 `reports/m4/M4_REPORT.md`：
+     - 若 `origin/main==candidate_sha`：说明 closeout commit 已完成但 push 未完成；固定执行一次普通 `git push origin main`；push 非 0 → STOP `M4_BLOCKED_RESUME_GIT_STATE`；
+     - push 后或原本就满足 `origin/main==HEAD`：写 `closeout_sha=HEAD, state=CLOSEOUT_PUSHED`；
+   - 其他情况 → STOP `M4_BLOCKED_RESUME_GIT_STATE`。
+
+3. 若 session.state=`CANDIDATE_PUSHED` 但发现 HEAD 已是合法 closeout commit，只有在**上述第 2 条**的合法 closeout commit 条件全部成立时才允许自动升级为 `CLOSEOUT_PUSHED`；否则 STOP。
+
+4. 其他任何 HEAD/session 不一致均 STOP；不得 reset/rebase/restore/force-push 猜测恢复。
 
 # 23. 执行顺序锁死
 
-P0 frozen/preflight/full pytest
-→ P1 只创建 §19 的 4 个 code/test files，完成 helper/harness/performance harness/8 CPU tests；`run_m4_architecture_compare.py` 的 CLI 必须支持 `--phase {primary,finalize,report}` + `--resume`，`benchmark_m4_architecture_performance.py` 的 CLI 必须支持 `--resume`
-→ P1.1 `D:\sd-webui-forge-aki-v1.0\python\python.exe -m pytest tests/test_m4_architecture_compare.py -q`
+FRESH 从 P0 开始；RESUME 根据 session.state **跳到第一个未完成 phase**，不得重跑已经成功完成的 phase。
+
+P0 FRESH frozen/preflight/full pytest
+→ 成功后 session=`P0_PASSED`
+→ P1 只创建 §19 的 4 个 code/test files，完成 helper/harness/performance harness/8 CPU tests；`run_m4_architecture_compare.py` CLI 必须支持 `--phase {primary,finalize,report}` + `--resume`，`benchmark_m4_architecture_performance.py` 必须支持 `--resume`
+→ P1.1 固定执行 `D:\sd-webui-forge-aki-v1.0\python\python.exe -m pytest tests/test_m4_architecture_compare.py -q`；必须精确 `8 passed / 0 failed / 0 skipped / 0 xfailed`，禁止 parametrization 产生额外 collected cases
+→ 成功后 session=`P1_READY`
+→ 写 session=`PRIMARY_RUNNING`
 → P2～P6 固定执行：`D:\sd-webui-forge-aki-v1.0\python\python.exe benchmarks/run_m4_architecture_compare.py --phase primary --resume`
-→ `--phase primary` 内部固定顺序：precision smoke → 生成/验证 3 个 plan → 6 primary runs → final train/validation/test Teacher metrics → 6 × 2000 games → paired statistics
-→ 6 primary run 顺序固定为：Transformer/20260919 → ResidualMLP/20260919 → ResidualMLP/20260920 → Transformer/20260920 → Transformer/20260921 → ResidualMLP/20260921（中间 seed 反转先后，禁止改顺序）
+→ `--phase primary` 内部固定顺序：**生成/验证 3 个 §7 primary plan → precision smoke → 6 primary runs → 全 6 run 完成后首次消费 test rows并执行 §11 Teacher/D4 metrics → §12 evaluator correctness gate → 6 × 2000 games → §13 paired statistics**
+→ 6 primary run 顺序固定为：Transformer/20260919 → ResidualMLP/20260919 → ResidualMLP/20260920 → Transformer/20260920 → Transformer/20260921 → ResidualMLP/20260921
+→ primary 成功后 session=`PRIMARY_DONE`
+→ 写 session=`PERFORMANCE_RUNNING`
 → P7 固定执行：`D:\sd-webui-forge-aki-v1.0\python\python.exe benchmarks/benchmark_m4_architecture_performance.py --resume`
+→ performance 成功后 session=`PERFORMANCE_DONE`
+→ 写 session=`FINALIZE_RUNNING`
 → P8～P9 固定执行：`D:\sd-webui-forge-aki-v1.0\python\python.exe benchmarks/run_m4_architecture_compare.py --phase finalize --resume`
-→ `--phase finalize` 只做 conditional equal-wall secondary（若 §16 机械触发）与 selection，并把结果写入 `artifacts/m4/progress/finalize.json`；不得先写 tracked report
+→ `--phase finalize` **只读取** `primary.json + performance.json`，做 §16 conditional equal-wall secondary（机械触发时）与 §24 selection，并把结果原子写入 `artifacts/m4/progress/finalize.json`；不得重算 primary/P7、不得先写 tracked report；`finalize.json` 固定至少含 `schema_version=1, wall_ratio, equal_wall_clock_secondary, strength_conclusion, speed_ratio, selected_architecture, selection_rule`
+→ finalize 成功后 session=`FINALIZED`
+→ 执行 candidate artifact cleanup：保留 §25 要求的 final/evidence 文件，删除所有 primary/secondary `*_latest.pt`、临时 `.tmp/.lock`；cleanup 必须幂等，完成后验证所有 required final artifacts 可读且 SHA 与 manifest 一致
+→ 写 session=`P10_RUNNING`
 → P10 固定执行：`D:\sd-webui-forge-aki-v1.0\python\python.exe -m pytest -q --junitxml=artifacts/m4/pytest.xml`
-→ P10 成功后固定执行：`D:\sd-webui-forge-aki-v1.0\python\python.exe benchmarks/run_m4_architecture_compare.py --phase report --resume`
-→ `--phase report` 必须解析 `artifacts/m4/pytest.xml`，确认 0 failures / 0 errors / 0 skipped 且 tests >=533，然后写 `reports/m4/m4_architecture_compare.json` + candidate version of `reports/m4/M4_REPORT.md`
+→ 成功且 JUnit/pytest 均确认 `533 passed / 0 failed / 0 errors / 0 skipped / 0 xfailed` 后 session=`P10_DONE`
+→ 固定执行：`D:\sd-webui-forge-aki-v1.0\python\python.exe benchmarks/run_m4_architecture_compare.py --phase report --resume`
+→ `--phase report` 的数据输入**只能**是 `session.json + primary.json + performance.json + finalize.json + pytest.xml`（以及这些 manifest 引用的路径字符串/SHA，不得重新打开 raw game/checkpoint 做新计算）；不得训练、评测或改 selection；必须再次确认 tests=533 且 0 failures/errors/skipped，然后机械合并写 `reports/m4/m4_architecture_compare.json` + candidate version of `reports/m4/M4_REPORT.md`；candidate report 的 Git/CI 字段固定写 `candidate_sha=PENDING_BY_DESIGN, candidate_ci=PENDING_BY_DESIGN, closeout_commit_sha=SELF_NOT_EMBEDDABLE_BY_DESIGN, closeout_ci=PENDING_BY_DESIGN`
+→ report 成功后 session=`REPORT_WRITTEN`
 → candidate implementation commit/push
+→ push 成功后立即写 `candidate_sha=HEAD, state=CANDIDATE_PUSHED`
 → candidate GitHub Actions green
-→ mandatory report-only closeout：只允许修改 `reports/m4/M4_REPORT.md`，回写 candidate SHA / candidate CI run ID+conclusion
+→ candidate CI success 后先写 session=`CLOSEOUT_REPORT_READY`
+→ mandatory report-only closeout：只修改 `reports/m4/M4_REPORT.md`；把 `candidate_sha` 与 `candidate_ci` 回写真实值；`closeout_parent` 固定等于 candidate_sha；`closeout_commit_sha` 固定保持 `SELF_NOT_EMBEDDABLE_BY_DESIGN`，禁止 amend 自引用；`closeout_ci` 固定写 `PENDING_BY_DESIGN_AT_REPORT_COMMIT`
 → report-only closeout commit/push
+→ push 成功后立即写 `closeout_sha=HEAD, state=CLOSEOUT_PUSHED`
 → closeout GitHub Actions green
+→ session=`COMPLETE`
 → STOP for independent M4 audit
 
 不得跳步。
@@ -589,9 +708,10 @@ P0 frozen/preflight/full pytest
 - `ARCHITECTURE_STRENGTH_NOT_STATISTICALLY_RESOLVED`
 
 selection 映射固定：
-- `TRANSFORMER_STRENGTH_SIGNIFICANT` → `M4_SELECT_TRANSFORMER`；
-- `MLP_STRENGTH_SIGNIFICANT` → `M4_SELECT_RESIDUAL_MLP`；
-- `ARCHITECTURE_STRENGTH_NOT_STATISTICALLY_RESOLVED` → 严格执行 §14，得到 Transformer 或 ResidualMLP；
+- `TRANSFORMER_STRENGTH_SIGNIFICANT` → `M4_SELECT_TRANSFORMER`，`selection_rule=SCORE_SIGNIFICANCE`；
+- `MLP_STRENGTH_SIGNIFICANT` → `M4_SELECT_RESIDUAL_MLP`，`selection_rule=SCORE_SIGNIFICANCE`；
+- `ARCHITECTURE_STRENGTH_NOT_STATISTICALLY_RESOLVED` 且 `speed_ratio >= 1.10` → 选择 §14 median throughput 更高者，`selection_rule=8192_SPEED`；
+- `ARCHITECTURE_STRENGTH_NOT_STATISTICALLY_RESOLVED` 且 `speed_ratio < 1.10` → `M4_SELECT_TRANSFORMER`，`selection_rule=PARAMETER_COUNT`；
 - 只有施工单明确的 blocker 才允许 `M4_BLOCKED`。
 
 不得凭主观判断覆盖该映射。
@@ -614,14 +734,22 @@ selection 映射固定：
 - inference/training/closed-loop performance complete且所有 required point finite、无 OOM
 - selection rule mechanically satisfied
 - no architecture-specific tuning
-- final full pytest：0 failed / 0 skipped / 0 xfailed，passed count >= 533
+- final full pytest：精确 533 passed / 0 failed / 0 skipped / 0 xfailed
 - candidate CI green
 - mandatory report-only closeout CI green
-- artifacts organized / temp files cleaned：6 个 final checkpoint、3 个 plan、6 个 raw game NPZ、performance evidence、pytest.xml 保留；所有 `<architecture>_<seed>_latest.pt` 与仅用于运行中的临时 scratch/progress lock 文件删除
+- `session.state == COMPLETE`
+- artifacts organized / temp files cleaned：始终保留 6 个 primary final checkpoint、3 个 primary plan、6 个 primary raw game NPZ、performance evidence、pytest.xml、session/progress JSON；若 §16 触发还保留 2 个 secondary final checkpoint、2 个 secondary raw game NPZ、secondary progress/evidence；删除所有 primary/secondary `*_latest.pt` 与仅用于运行中的临时 scratch/lock 文件
 
 # 26. STOP / Git
 
-M4 必须创建普通 implementation candidate commit并 push。固定命令语义：
+M4 必须创建普通 implementation candidate commit并 push。commit 前的事务门固定：
+- `git status --porcelain=v1 -uall` 中只能出现 §19 六个路径；
+- 执行下方显式 `git add -- ...` 后，`git diff --name-only` 必须为空（无 unstaged tracked 修改）；
+- `git ls-files --others --exclude-standard` 必须为空（无未跟踪非 ignored 文件）；
+- `git diff --cached --name-only` 的集合必须**精确等于** §19 六个路径，缺一或多一都 STOP `M4_BLOCKED_CANDIDATE_STAGE_SET`；
+- `git diff --cached --check` 必须 exit 0。
+
+固定命令语义：
 
 ```text
 git add -- src/game2048/m4_compare.py benchmarks/run_m4_architecture_compare.py benchmarks/benchmark_m4_architecture_performance.py tests/test_m4_architecture_compare.py reports/m4/m4_architecture_compare.json reports/m4/M4_REPORT.md
@@ -632,13 +760,14 @@ git push origin main
 
 该 commit 是 M4 candidate implementation 的权威候选 SHA；commit 后立即记录 `git rev-parse HEAD`。
 
-candidate CI 固定用 candidate SHA 查询对应 GitHub Actions `CI` run，并等待完成。
+candidate CI 固定按 `headSha == candidate_sha`、workflow name=`CI`、event=`push` 过滤；若出现多个匹配 run，固定取 databaseId 最大者；轮询直到 completed。
 
-- CI success → 继续；
-- CI 因 checkout/setup/dependency/runner infrastructure 失败 → 只允许原样 rerun 一次；第二次仍非 success → STOP `M4_BLOCKED_CI_INFRA`；
-- CI 在 M2 build / M3 build / pytest 阶段失败 → 不得改协议；只允许在 §19 的 4 个 code/test files 内修 correctness bug，重新跑本地 full pytest，创建**新的** candidate implementation commit并重新走 candidate CI；旧 candidate 作废，以最后 green 的 implementation SHA 为准。
+- conclusion=`success` → 继续；
+- 任何其他 conclusion（failure/cancelled/timed_out/action_required/stale/neutral/skipped 等）→ 立即 STOP `M4_BLOCKED_CANDIDATE_CI`；执行 Agent 不得 rerun CI、不得修改代码、不得创建第二个 candidate commit。
 
-candidate CI green 后**必须**创建恰好一个 report-only closeout descendant：只修改 `reports/m4/M4_REPORT.md`，写入最终 candidate SHA、candidate CI run ID/conclusion、closeout parent。固定：
+candidate CI green 后**必须**创建恰好一个 report-only closeout descendant。进入 commit 前固定检查：dirty/untracked path 只能是 `reports/m4/M4_REPORT.md`；执行显式 add 后 `git diff --name-only` 与 `git ls-files --others --exclude-standard` 都必须为空；`git diff --cached --name-only` 必须精确只有 `reports/m4/M4_REPORT.md`；`git diff --cached --check` 必须 exit 0，否则 STOP `M4_BLOCKED_CLOSEOUT_STAGE_SET`。
+
+closeout 只修改 `reports/m4/M4_REPORT.md`，写入最终 candidate SHA、candidate CI run ID/conclusion、closeout parent。固定：
 
 ```text
 git add -- reports/m4/M4_REPORT.md
@@ -647,7 +776,7 @@ git commit -m "docs: close M4 candidate report"
 git push origin main
 ```
 
-closeout commit push 后等待它自己的 CI。closeout CI 若 infrastructure 失败只原样 rerun 一次；若 build/pytest 失败则 STOP `M4_BLOCKED_CLOSEOUT_CI`（docs-only closeout 不允许顺手改 implementation）。只有 closeout CI success 后才允许输出 `M4 CANDIDATE COMPLETE`。
+closeout commit push 后按 `headSha == closeout_sha`、workflow name=`CI`、event=`push` 过滤；多个匹配 run 固定取 databaseId 最大者并轮询到 completed。conclusion 只有 `success` 才通过；任何其他 conclusion → 立即 STOP `M4_BLOCKED_CLOSEOUT_CI`，不得 rerun、不得修改 implementation/report、不得创建第三个 commit。只有 closeout CI success 后才写 session=`COMPLETE` 并允许输出 `M4 CANDIDATE COMPLETE`。
 
 禁止：
 - 创建 M4 audited tag
@@ -710,13 +839,15 @@ M4 的 selected architecture 只是给 M5+ 使用的 architecture baseline。
 
 # 30. 最终行为
 
-完成 candidate 后输出：
+任何阶段触发 `M4_BLOCKED_*` 或 `M4_BLOCKED` 时，统一立即 STOP，并输出：`RESULT=M4_BLOCKED`、精确 blocker code、当前 session state、触发条件实际值、已完成 evidence/artifact 路径、`git status --short`、HEAD/origin/main；不得继续后续 phase，不得创建 M4 candidate/tag。
+
+只有 §25 全部成立后才算完成 candidate，并输出：
 `M4 CANDIDATE COMPLETE`
 
 并明确：
 - selected architecture
 - strength conclusion
-- selection依据（score significance 或 speed/size tie-break）
+- selection依据：必须原样输出 `selection_rule`（`SCORE_SIGNIFICANCE / 8192_SPEED / PARAMETER_COUNT` 之一）及其对应关键数值
 - candidate implementation commit
 - mandatory report-only closeout commit
 - candidate CI run
