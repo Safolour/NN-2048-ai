@@ -1,9 +1,14 @@
 # M4 Transformer vs MLP — 严格施工提示词
 
+> **状态：HISTORICAL / FINAL AUDITED PASS / FROZEN。M4 已完成独立审计；本施工单仅用于复现与审计，不得作为当前阶段重新执行。当前阶段见 authoritative master plan（M5）。**
+>
+> authoritative tag：`m4-architecture-audited-pass` -> `300d51a818fa55394ec56de7507bcade111a06d1`
+> selected architecture：`ResidualMLP2048`
+>
 > 项目：Safolour/NN-2048-ai
 > 正式工作区：D:\CodexTasks\NN-2048-ai
-> 当前阶段：M4 Transformer vs MLP
-> 本文件是 M4 的唯一详细施工单；authoritative master plan 始终优先。
+> 历史阶段：M4 Transformer vs MLP
+> 本文件是 M4 的冻结施工单；authoritative master plan 始终优先。
 > Work-order version: `M4_WO_CLOSURE_V2`。
 
 # 0. 权威输入
