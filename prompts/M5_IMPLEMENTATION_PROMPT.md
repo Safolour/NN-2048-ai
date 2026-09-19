@@ -3,7 +3,7 @@
 > 项目：Safolour/NN-2048-ai
 > 正式工作区：D:\CodexTasks\NN-2048-ai
 > 当前阶段：M5 Teacher Pretraining
-> Work-order version: `M5_WO_CLOSURE_V1`
+> Work-order version: `M5_WO_CLOSURE_V2`
 > 本文件是 M5 的唯一详细施工单；authoritative master plan 始终优先。
 
 # 0. 权威输入
@@ -54,9 +54,36 @@ Git/frozen 硬门任一失败：STOP `M5_BLOCKED_START_STATE`；不得 pull/reba
 runtime 任一不符：STOP `M5_BLOCKED_RUNTIME_ENVIRONMENT`；不得临时换 Python/CUDA 环境。
 
 FRESH P0 成功后原子创建 `artifacts/m5/progress/session.json`，至少保存：
-`schema_version=1, work_order_version=M5_WO_CLOSURE_V1, base_head, prompt_sha256, teacher_sha256, m4_primary_sha256, state=P0_PASSED`。
+`schema_version=1, work_order_version=M5_WO_CLOSURE_V2, base_head, prompt_sha256, teacher_sha256, m4_primary_sha256, state=P0_PASSED`。
 
 RESUME：session 存在时禁止重新 FRESH。必须验证 work-order version、prompt SHA、Teacher SHA、M4 primary SHA、五个 frozen tags；不一致 STOP `M5_BLOCKED_RESUME_METADATA_MISMATCH`。
+
+## 1.1 V1 -> V2 one-time blocked-session migration
+
+本 V2 只修复 V1 在 524k source generation 暴露出的天然短局协议缺口。禁止借 migration 重开已完成阶段。
+
+仅当以下条件全部精确满足时，允许把既有 V1 session 原地迁移到 V2：
+- old `work_order_version=M5_WO_CLOSURE_V1`
+- old `prompt_sha256=A54C93A5034DDBA1010B72A984C776C7D83F38580B1F6D443BE287CA8C232835`
+- old `base_head=9c2aab4cdf111913c2d5f4136fa9ccfd2684d0da`
+- `state=DATA_524K_RUNNING`
+- exact blocker 是 `M5_BLOCKED_SOURCE_GAME_TOO_SHORT`
+- train source manifest：`complete_games=2624`、`states=335872`
+- `source_train.npz` SHA-256 = `1D680A5DE4C613A4810B30CFE4F81290BB97E0CA9DE1E048BAFD066FFF18518C`
+- train completed Search-label shards 仍为 64 个，且全部 SHA-valid
+- 32k / 131k 三 seed final checkpoints、dev gameplay、`development.json`、`scale_gate.json` 均存在且已完成；`scale_gate.trigger_524k=true`
+- 当前没有 M5 正式进程
+- frozen tags、Teacher SHA、M4 primary SHA 仍与 V1 session 一致
+- 当前 HEAD==origin/main，且 HEAD 必须是 old base 的直接后继“V2 short-source-game spec fix”规划提交；该规划提交只允许修改本 prompt 与 authoritative master plan
+
+migration 动作固定：
+1. 不删除 session，不重跑 P0/P1/P2/32k/131k。
+2. 原子更新 session：`work_order_version=M5_WO_CLOSURE_V2`、`prompt_sha256=<当前 V2 prompt SHA>`、`base_head=<当前 HEAD>`，state 保持 `DATA_524K_RUNNING`。
+3. 只把现有 source/label manifests 的 `work_order_version` 从 V1 原子升级为 V2；不得改变已提交 source rows、已完成 shard 内容或 SHA。
+4. 从未提交的 logical game slot 2624 开始继续 source generation。失败 batch 2624..2687 可以重新生成，因为 V1 异常发生在该 batch 原子提交之前。
+5. 已提交 logical games 0..2623、已有 64 个 label shards、32k/131k training/dev evidence 一律禁止重跑。
+
+任一 migration 前提不满足：STOP `M5_BLOCKED_V2_MIGRATION_MISMATCH`。
 
 # 2. Frozen source protection
 
@@ -179,17 +206,27 @@ profile 完成后报告：
 
 # 9. 数据规模阶梯固定
 
-每个 complete source game 固定抽取 128 个 canonical formal states，采样算法与 M3 相同：
+每个 accepted source game 固定抽取 128 个 canonical formal states，采样算法与 M3 相同：
 `np.rint(np.linspace(0, moves-1, 128)).astype(np.int64)`。
-必须保证 128 个 position 唯一；不足 128 decision states 的 game 属于 correctness error，STOP。
+必须保证 128 个 position 唯一。禁止通过 duplicate/pad/重复 state 把天然短局硬凑到 128。
 
 固定 source-policy：同一 frozen Teacher checkpoint 的 native `greedy_1ply`。
-每局独立 spawn RNG 固定为 `np.random.Generator(np.random.PCG64(game_seed))`；初始 board=`np.zeros(16,dtype=np.uint8)`，随后严格调用两次 frozen M0 `spawn_random(board,rng).state` 生成起始两 tile；以后该局所有 spawn 只继续消费自己的同一个 rng。greedy action 固定为 legal `np.nanargmax(reward + V_tuple(afterstate))`，tie 取最低 action id。某局提前 terminal 不得改变其他 game RNG stream。
+每次 source-game attempt 使用独立 spawn RNG：`np.random.Generator(np.random.PCG64(effective_game_seed))`；初始 board=`np.zeros(16,dtype=np.uint8)`，随后严格调用两次 frozen M0 `spawn_random(board,rng).state` 生成起始两 tile；以后该 attempt 所有 spawn 只继续消费自己的同一个 rng。greedy action 固定为 legal `np.nanargmax(reward + V_tuple(afterstate))`，tie 取最低 action id。某个 attempt 提前 terminal 不得改变其他 logical game 的 RNG stream。
 
-固定 split / seed：
-- train: game_id 0..4095；game_seed = `20265001 + game_id`
-- validation: game_id 100000..100063；game_seed = `20275001 + local_index`
-- test: game_id 200000..200063；game_seed = `20276001 + local_index`
+固定 logical split / canonical seed：
+- train: game_id 0..4095；canonical_game_seed = `20265001 + game_id`
+- validation: game_id 100000..100063；canonical_game_seed = `20275001 + local_index`
+- test: game_id 200000..200063；canonical_game_seed = `20276001 + local_index`
+
+天然短局采用固定 deterministic rejection-and-retry，不改变 logical game_id：
+- `retry_index=0`：`effective_game_seed = canonical_game_seed`
+- `retry_index>0`：`effective_game_seed = canonical_game_seed + retry_index * 1_000_000_000`
+- attempt 若 `moves < 128`：该 attempt **rejected**；其任何 state 都不得进入 source NPZ / Search labels，然后 retry_index += 1
+- 最多允许 `retry_index=32`；若 0..32 共 33 个 attempt 全部不足 128，STOP `M5_BLOCKED_SOURCE_GAME_RETRY_EXHAUSTED`
+- 第一个 `moves >= 128` 的 attempt 为 accepted game，仍只按 round-linspace 抽 128 个唯一 position
+- dataset 字段 `game_seed` 保存 accepted `effective_game_seed`；`game_id` 始终保存 logical game_id
+- source manifest 每个 logical game 必须记录 `canonical_game_seed`、accepted `game_seed`、`retry_index`，以及 rejected attempts 的 seed/moves/final_score/max_tile_exp_terminal
+- 已有 V1 accepted games 在 migration 时等价视为 `retry_index=0`，不得重放；manifest 可机械补 provenance metadata，但不得改 source NPZ bytes
 
 固定 training rungs：
 - `32k`: first 256 train games = 32,768 states
@@ -261,7 +298,7 @@ M5 在 scale/champion 选择完成之前：
 
 source trajectory 与 Search label 分离。
 
-source trajectory generation 必须保存 complete-game summary；每 game 记录 seed/moves/final score/max tile/sampled positions。
+source trajectory generation 必须保存 accepted complete-game summary；每个 logical game 记录 canonical seed、accepted effective seed、retry_index、rejected attempts provenance、moves/final score/max tile/sampled positions。
 
 Search labels：
 - worker count 固定 8；
@@ -778,6 +815,8 @@ M5 execution Agent **不得创建 M5 audited tag**，不得把 master plan 推�
 - completed evidence paths
 
 不得为了绕 gate 修改 protocol。
+
+`M5_BLOCKED_SOURCE_GAME_TOO_SHORT` 只属于 V1 历史 blocker；V2 不再因单次天然短局 STOP，而必须执行 §9 deterministic rejection-and-retry。只有 retry 0..32 全失败时才 STOP `M5_BLOCKED_SOURCE_GAME_RETRY_EXHAUSTED`。
 
 script exception / CUDA OOM / non-finite primary training：分别 STOP `M5_BLOCKED_RUNTIME_ERROR` / `M5_BLOCKED_OOM` / `M5_BLOCKED_NUMERIC`；禁止自动减 batch/改 LR/改 precision。
 
