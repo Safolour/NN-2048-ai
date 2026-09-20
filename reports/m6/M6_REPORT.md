@@ -88,10 +88,10 @@ Candidate evidence only; independent M6 audit is still required.
 
 ## 15. GIT / CI
 
-- candidate_sha=PENDING_BY_DESIGN
-- candidate_ci=PENDING_BY_DESIGN
+- candidate_sha=bf3b939eef92f575541f134fcdad545c0d2a9fb5
+- candidate_ci=35501899266 / success
 - closeout_commit_sha=SELF_NOT_EMBEDDABLE_BY_DESIGN
-- closeout_ci=PENDING_BY_DESIGN
+- closeout_ci=PENDING_BY_DESIGN_AT_REPORT_COMMIT
 
 ## 16. AUDIT STATUS
 
