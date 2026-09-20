@@ -1,14 +1,17 @@
 # M6 Student State Correction — 严格施工提示词
 
-> 状态：READY FOR EXECUTION / NOT STARTED。
+> **状态：HISTORICAL / FINAL AUDITED PASS / FROZEN。M6 已完成独立审计；本施工单仅用于复现与审计，不得作为当前阶段重新执行。后续阶段见 authoritative master plan。**
+>
+> authoritative tag：`m6-state-correction-audited-pass` -> `bf3b939eef92f575541f134fcdad545c0d2a9fb5`
+> locked candidate seed：`20263101`
+> frozen Student checkpoint SHA-256：`EF779ADFB3C2BE21631F73BE400149D511CC7903B9DECBC309948F77F6F94FAB`
 >
 > 项目：Safolour/NN-2048-ai
 > 正式工作区：D:\CodexTasks\NN-2048-ai
-> 当前阶段：M6 Student State Correction
+> 历史阶段：M6 Student State Correction
 > Work-order version：M6_WO_STATE_CORRECTION_V2
-> 本文件是 M6 正式施工单；authoritative master plan 始终优先。
-> M6 只允许在本施工单对应 planning commit 已 push 且 CI success 后启动。
-> 本施工单的生成不等于 M6 training 已开始。
+> 本文件是 M6 的冻结施工单；authoritative master plan 始终优先。
+> M6 execution / independent audit 已结束；不得重新打开已冻结实验，除非未来独立发现真实 correctness bug。
 
 # 0. 权威输入与冲突处理
 
