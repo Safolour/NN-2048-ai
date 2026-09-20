@@ -5,7 +5,7 @@
 > 项目：Safolour/NN-2048-ai
 > 正式工作区：D:\CodexTasks\NN-2048-ai
 > 当前阶段：M6 Student State Correction
-> Work-order version：M6_WO_STATE_CORRECTION_V1
+> Work-order version：M6_WO_STATE_CORRECTION_V2
 > 本文件是 M6 正式施工单；authoritative master plan 始终优先。
 > M6 只允许在本施工单对应 planning commit 已 push 且 CI success 后启动。
 > 本施工单的生成不等于 M6 training 已开始。
@@ -17,7 +17,9 @@
 2. prompts/M5_IMPLEMENTATION_PROMPT.md
 3. reports/m5/M5_AUDIT_REPORT.md
 4. reports/m5/M5_REPORT.md
-5. 本文件 prompts/M6_IMPLEMENTATION_PROMPT.md
+5. reports/m6/M6_TEACHER_PROMOTION.md
+6. teacher_checkpoints/manifest.json
+7. 本文件 prompts/M6_IMPLEMENTATION_PROMPT.md
 
 如有真实冲突：STOP M6_BLOCKED_SPEC_CONFLICT。
 不得由 execution Agent 自行判断“哪个更合理”后继续。
@@ -67,6 +69,27 @@ M6 planning lineage 必须包含当前 M5 audit/master-plan closeout HEAD：
 
 FRESH 仅当 artifacts/m6/progress/session.json 不存在。
 
+## 1.1 一次性 V1 -> V2 planning migration
+
+本 V2 planning base 允许且仅允许一次由 planning Agent 完成的迁移，原因是：
+- V1 已合法完成 P0/P1/P1.1
+- V1 在旧 Teacher 的 P2 performance gate STOP
+- 随后完成 FORMAL 10M Teacher promotion
+- Teacher 改变使旧 P2 evidence失效，但 P1 Student/correction 实现本身可保留
+
+planning Agent 必须在 V2 planning commit + CI success 后：
+1. 把旧 V1 session/provenance 原样归档到 artifacts/m6/archive/v1_teacher_719271_attempt/
+2. 重新验证六个 frozen tags、M5 Student SHA、M5 anchor manifest SHA、新 promoted Teacher完整 SHA/header
+3. 对现有五个 M6 P1 code/test paths做 py_compile
+4. 正式重跑 tests/test_m6_state_correction.py，必须 exact 10 passed
+5. 计算 V2 prompt SHA
+6. 创建新的 active session/provenance，work_order_version=M6_WO_STATE_CORRECTION_V2，teacher_sha256=908BA8B8D01A4AFF76D32BE65220D61B6ED702696AA83E10B41594EB5A25AACC，state=P1_READY
+7. session 记录 migration_from_work_order=M6_WO_STATE_CORRECTION_V1 与 planning base HEAD
+
+这次 migration 只能由 planning Agent执行一次。
+Execution Agent 不得自行迁移、伪造或重复它。
+如果 active V2 session 已为 P1_READY，下一次执行必须 RESUME P2，不重跑 P0/P1。
+
 FRESH Git 硬门：
 - HEAD == origin/main
 - worktree clean
@@ -93,7 +116,7 @@ artifacts/m6/progress/session.json
 
 至少保存：
 schema_version=1
-work_order_version=M6_WO_STATE_CORRECTION_V1
+work_order_version=M6_WO_STATE_CORRECTION_V2
 base_head=<FRESH 时 HEAD>
 prompt_sha256
 m5_tag_sha
@@ -156,6 +179,8 @@ M6 不是：
 M6 只做一次固定 protocol correction。
 不得把一次 M6 自动扩展成多轮 correction。
 
+M6 execution 本身不是 Teacher promotion：Teacher promotion 已在 planning base 中独立完成并冻结于 reports/m6/M6_TEACHER_PROMOTION.md。Execution Agent 不得重新比较、重新选择或回退 Teacher。
+
 # 4. Frozen Student baseline
 
 M6 Student baseline 唯一固定为 M5 selected champion：
@@ -182,19 +207,42 @@ M6 每个 training seed：
 
 # 5. Frozen Teacher / Search semantics
 
-M6 Teacher 继续固定为 M3/M5 retained Teacher：
-- checkpoint：teacher_checkpoints/m3/ordinary_td_comparator_ep4800000_7192719323a0.bin
-- SHA-256：7192719323A073BA2B6B19B62CB7D46EF4AA90ECC8C4AE6BAF27AD0C51566A84
+M6 correction Teacher 已在 planning base 中独立 promotion，并固定为完成 TC 的 FORMAL 10M：
+- checkpoint：teacher_checkpoints/m6/formal_afterstate_td0_tc_ep10000000_908ba8b8d01a.bin
+- SHA-256：908BA8B8D01A4AFF76D32BE65220D61B6ED702696AA83E10B41594EB5A25AACC
+- file size：3,221,225,728 bytes
+- format：U2048NT6 / v2
+- stage_count：2
+- stage_thresholds：(0, 16384)
+- phase：2
+- global episodes：10,000,000
+- OTD：9,000,000
+- TC：1,000,000
+- has_coherence_stats：True
+- promotion evidence：reports/m6/M6_TEACHER_PROMOTION.md
+
+M6 runtime 必须使用 M6-only read-only TC loader：
+- mmap header 后的 inference weight plane
+- TC coherence-statistics tail 只作为训练统计保留，不参与 inference
+- 不得修改 frozen M3 loader
+- 不得把 3GB checkpoint 转写、裁剪或另存为未登记格式
+
+P0 必须重新计算完整 checkpoint SHA-256，并验证上述 header metadata。
+任一不符：STOP M6_BLOCKED_TEACHER_CHECKPOINT。
+
+历史边界必须保持：
+- M3/M5 retained Teacher 4.8M SHA 7192719323A073BA2B6B19B62CB7D46EF4AA90ECC8C4AE6BAF27AD0C51566A84 仍是 M5 Student/M5 anchor 的历史 provenance
+- 不得修改 M5 checkpoint 或 M5 label manifest 中的旧 Teacher provenance
+- M6 correction source 的新 Teacher SHA 才是 908BA8B8D01A4AFF76D32BE65220D61B6ED702696AA83E10B41594EB5A25AACC
 
 不得使用：
 - latest.bin
-- COMPARATOR 6.4M
-- FORMAL 8.4M
-- 新出现的 tuple checkpoint
+- 任何 ordinary/comparator 临时 checkpoint
+- FORMAL 的旧中间 checkpoint
+- D:\CodexTasks\2048-ai\final.bin 作为运行时路径
 - 混合 Teacher
 
-M6 不重新打开 Teacher promotion。
-Teacher promotion = M5 frozen NO PROMOTION。
+Teacher promotion 已完成；M6 execution Agent 不得重新打开 promotion、回退旧 Teacher 或另选 checkpoint。
 
 value semantics 继续冻结：
 - V_tuple = RAW_TUPLE_HEURISTIC
@@ -354,8 +402,23 @@ SHA-256：8E09F0D7774BCEC55C496A29550F2362FB83DEE142643F69472F12AE14963C51
 - repeats = 3
 - 每 repeat 对全部 256 roots 重新构造 Search
 
-correctness：三个 repeat 的 legal mask、action values、best action、node/cache counts 必须与 reference 精确一致。
-失败：STOP M6_BLOCKED_SEARCH_CORRECTNESS。
+correctness 在 Teacher promotion 后固定为：
+
+1. legacy reference 只冻结 board legality 与 Search traversal shape：
+   - promoted Teacher 三个 repeat 的 legal mask 必须与 reference 精确一致
+   - node/cache counts 必须与 M3 frozen profile 精确一致
+2. promoted Teacher backend equivalence：
+   - 对全部 256 profile states，M6 TC loader 的 formal_state_leaf_batch 使用 cpp backend 与 python backend 必须 bit-identical
+3. promoted Teacher deterministic Search：
+   - 三个完整 256-root repeat 的 action values 必须彼此 bit-identical（NaN 位置相同）
+   - 因此 best action 也必须跨 repeat 一致
+
+重要：
+旧 artifacts/m3/search_ab_p6_cpp_values.npz 的 action values / best action 属于旧 4.8M Teacher。
+Teacher promotion 后不得要求新 Teacher 的 action values / best action 与旧 Teacher 数值相等。
+该旧 artifact 仅用于 legal-mask reference；Search traversal counts 继续取 frozen M3 profile evidence。
+
+任一 correctness 条件失败：STOP M6_BLOCKED_SEARCH_CORRECTNESS。
 
 M5 audited Search median：9.781657434455234 roots/s
 M6 performance gate：3-repeat median roots/s >= 8.803491691009711
@@ -482,7 +545,8 @@ P0/P2 必须验证：
 - train 256 shards complete
 - 524,288 train rows
 - 每个 shard SHA-valid
-- Teacher SHA 与 frozen M3 Teacher 一致
+- M5 anchor manifest 的历史 Teacher SHA 必须精确为 7192719323A073BA2B6B19B62CB7D46EF4AA90ECC8C4AE6BAF27AD0C51566A84
+- 不得把 M6 promoted Teacher SHA 写回 M5 anchor provenance
 - value_semantics = SEARCH_VALUE_RAW_LEAF
 
 失败：STOP M6_BLOCKED_M5_ANCHOR_EVIDENCE。
@@ -978,7 +1042,14 @@ M6 execution candidate 只允许新增/修改以下 7 个 tracked paths：
 5. tests/test_m6_state_correction.py
 6. reports/m6/m6_state_correction.json
 7. reports/m6/M6_REPORT.md
-本 planning prompt：prompts/M6_IMPLEMENTATION_PROMPT.md 已属于 M6 planning base，execution Agent不得修改。
+以下 Teacher-promotion planning files 也已属于 planning base，execution Agent不得修改：
+- prompts/M6_IMPLEMENTATION_PROMPT.md
+- teacher_checkpoints/manifest.json
+- teacher_checkpoints/README.md
+- reports/m6/M6_TEACHER_PROMOTION.md
+
+3GB binary teacher_checkpoints/m6/*.bin 为 Git-ignored immutable runtime input，只能读，不得改写/覆盖。
+
 master plan：execution Agent不得修改。
 M0-M5任何 tracked path：execution Agent不得修改。
 

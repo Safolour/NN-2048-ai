@@ -13,5 +13,31 @@
     "source_project_git_commit": "172e7d1a1d501282899b8a5a2e251c174c43f98f",
     "source_run_git_dirty": true,
     "resolved_config_sha256": "6f4f6781eceeda496a3e600f754708ac644fc68be0057d4fe4bcb847ea0cc61f"
+  },
+  "m6_teacher_promoted": {
+    "relative_path": "m6/formal_afterstate_td0_tc_ep10000000_908ba8b8d01a.bin",
+    "sha256": "908ba8b8d01a4aff76d32be65220d61b6ed702696aa83e10b41594eb5a25aacc",
+    "episode": 10000000,
+    "format": "U2048NT6",
+    "format_version": 2,
+    "feature_schema": "4bit_exponent_6tuple",
+    "algorithm": "afterstate_td0_tc",
+    "role": "M6 promoted correction teacher",
+    "source_snapshot": "D:\\CodexTasks\\2048-ai\\final.bin",
+    "file_size_bytes": 3221225728,
+    "stage_count": 2,
+    "stage_thresholds": [
+      0,
+      16384
+    ],
+    "phase": 2,
+    "global_episodes_completed": 10000000,
+    "otd_episodes_completed": 9000000,
+    "tc_episodes_completed": 1000000,
+    "otd_episode_budget": 9000000,
+    "tc_episode_budget": 1000000,
+    "training_seed": 1,
+    "has_coherence_stats": true,
+    "promotion_report": "reports/m6/M6_TEACHER_PROMOTION.md"
   }
 }
